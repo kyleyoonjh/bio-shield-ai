@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pandas
+openpyxl
+scipy
+statsmodels
+python-multipart
+openai
+python-dotenv
