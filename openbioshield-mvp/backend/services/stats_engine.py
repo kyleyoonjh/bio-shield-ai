@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import io
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -31,6 +34,7 @@ def analyze_precision(
 ) -> dict[str, Any]:
     target_col = schema["target_column"]
     group_columns: list[str] = schema.get("group_columns", [])
+    logger.info("[analyze_precision] file=%s  target=%s  groups=%s", filename, target_col, group_columns)
 
     if filename.endswith(".csv"):
         df = pd.read_csv(io.BytesIO(file_bytes))
@@ -116,9 +120,92 @@ def analyze_precision(
         "target_column": target_col,
         "group_columns": group_columns,
     }
+    logger.info("[analyze_precision] OK  n=%d  grand_mean=%.4f", len(df), grand_mean)
+
+
+def analyze_method_comparison(
+    file_bytes: bytes,
+    schema: dict[str, Any],
+    filename: str = "upload.xlsx",
+) -> dict[str, Any]:
+    """EP09-A3: Deming regression + Bland-Altman analysis."""
+    ref_col  = schema["reference_column"]
+    test_col = schema["test_column"]
+    logger.info("[analyze_method_comparison] file=%s  ref=%s  test=%s", filename, ref_col, test_col)
+
+    if filename.endswith(".csv"):
+        df = pd.read_csv(io.BytesIO(file_bytes))
+    else:
+        df = pd.read_excel(io.BytesIO(file_bytes))
+
+    for col in (ref_col, test_col):
+        if col not in df.columns:
+            raise ValueError(f"Column '{col}' not found in file")
+
+    df = df.dropna(subset=[ref_col, test_col]).copy()
+    df[ref_col]  = pd.to_numeric(df[ref_col],  errors="coerce")
+    df[test_col] = pd.to_numeric(df[test_col], errors="coerce")
+    df = df.dropna(subset=[ref_col, test_col])
+
+    x = df[ref_col].to_numpy(dtype=float)
+    y = df[test_col].to_numpy(dtype=float)
+    n = len(x)
+
+    if n < 2:
+        raise ValueError("At least 2 paired observations required for EP09 analysis")
+
+    # ── Pearson correlation ────────────────────────────────────────────────
+    r_val, p_corr = stats.pearsonr(x, y)
+    r_squared = float(r_val ** 2)
+
+    # ── Deming regression (lambda = 1, equal error variances) ─────────────
+    x_mean = float(x.mean())
+    y_mean = float(y.mean())
+    sxx = float(np.sum((x - x_mean) ** 2))
+    syy = float(np.sum((y - y_mean) ** 2))
+    sxy = float(np.sum((x - x_mean) * (y - y_mean)))
+
+    discriminant = (syy - sxx) ** 2 + 4.0 * sxy ** 2
+    slope     = float((syy - sxx + np.sqrt(discriminant)) / (2.0 * sxy)) if sxy != 0 else 1.0
+    intercept = float(y_mean - slope * x_mean)
+
+    # ── Bland-Altman ───────────────────────────────────────────────────────
+    avg  = (x + y) / 2.0
+    diff = y - x
+    mean_diff = float(diff.mean())
+    sd_diff   = float(diff.std(ddof=1))
+    loa_upper = mean_diff + 1.96 * sd_diff
+    loa_lower = mean_diff - 1.96 * sd_diff
+
+    scatter_data     = [{"ref": round(float(xi), 4), "test": round(float(yi), 4)}
+                        for xi, yi in zip(x, y)]
+    bland_altman_pts = [{"avg": round(float(a), 4), "diff": round(float(d), 4)}
+                        for a, d in zip(avg, diff)]
+
+    return {
+        "r_squared":  round(r_squared, 4),
+        "pearson_r":  round(float(r_val), 4),
+        "deming": {
+            "slope":     round(slope, 4),
+            "intercept": round(intercept, 4),
+        },
+        "bland_altman": {
+            "mean_diff": round(mean_diff, 4),
+            "sd_diff":   round(sd_diff, 4),
+            "loa_upper": round(loa_upper, 4),
+            "loa_lower": round(loa_lower, 4),
+        },
+        "scatter_data":       scatter_data,
+        "bland_altman_data":  bland_altman_pts,
+        "sample_count":       n,
+        "reference_column":   ref_col,
+        "test_column":        test_col,
+    }
+    logger.info("[analyze_method_comparison] OK  n=%d  r2=%.4f  slope=%.4f", n, r_squared, slope)
 
 
 def extract_excel_metadata(file_bytes: bytes, filename: str = "upload.xlsx", n_rows: int = 5) -> dict:
+    logger.info("[extract_excel_metadata] file=%s  size=%d bytes", filename, len(file_bytes))
     if filename.endswith(".csv"):
         df = pd.read_csv(io.BytesIO(file_bytes), nrows=n_rows)
     else:

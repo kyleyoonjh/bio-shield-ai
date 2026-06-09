@@ -1,0 +1,36 @@
+ranking:
+  coverage_weight: 0.6
+  thermo_weight:   0.2
+  ai_weight:       0.2
+
+# Specificity is a Hard Filter — fails immediately remove the candidate
+specificity_filter:
+  max_allowable_hits:           0
+  allow_dangerous_3prime_match: false
+
+blast_config:
+  db:             "human_genomic"
+  e_value_cutoff: 30000
+  word_size:      7
+
+thermo_config:
+  optimal_tm_min:   58.0
+  optimal_tm_max:   62.0
+  max_tm_delta:     2.0     # max Tm difference between Fwd and Rev
+  max_gc:           65.0
+  min_gc:           40.0
+  max_self_dimer_dg: -6.0   # kcal/mol
+  max_hairpin_dg:    -2.0   # kcal/mol
+
+primer3_config:
+  product_size_min: 80
+  product_size_max: 250
+  primer_opt_size:  20
+  primer_min_size:  18
+  primer_max_size:  25
+  primer_opt_tm:    60.0
+  primer_min_tm:    57.0
+  primer_max_tm:    63.0
+  primer_min_gc:    40.0
+  primer_max_gc:    65.0
+  num_return:       10

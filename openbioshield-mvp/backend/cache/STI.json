@@ -1,0 +1,44 @@
+{
+  "disease_type": "STI",
+  "accession": "AE001273.1",
+  "rdrp_sequence": "TCAAGAATGGAAGGCGATGAGGCGCAAGGACCTTCTAGAGCACAACAAGCTTTTCAGAGCTTTGTAAATGAATGTAACAGCATCGAGTTCTCATTTGGGAGCTTTGGAGAGCATGTGCGAGTTCTCTGCGCTAGAGTATCACGAGGATTAGCTGCCGCAGGAGAGGCGATTCGCCGTTGCTTCTCTTGTTGTAAAGGATCGACGCATCGCTACGCTCCTCGCGATGACCTATCTCCTGAAGGTGCATCGTTAGCAGAGACTTTGGCTAGATTCGCAGATGATATGGGAATAGAGCGAGGTGCTGATGGAACCTACGATATTCCTTTGGTAGATGATTGGAGAAGAGGGGTTCCTAGTATTGAAGGAGAAGGATCTGACTCGATCTATGAAATCATGATGCCTATCTATGAAGTTATGGATATGGATCTAGAAACACGAAGATCTTTTGCGGTACAGCAAGGGCACTATCAGGACCCAAGAGCTTCAGATTATGACCTCCCA",
+  "annotations": [
+    {
+      "name": "ompA_Fwd",
+      "start": 10,
+      "end": 31,
+      "color": "#4CAF50",
+      "strand": 1
+    },
+    {
+      "name": "ompA_Probe",
+      "start": 48,
+      "end": 71,
+      "color": "#FF9800",
+      "strand": 1
+    },
+    {
+      "name": "ompA_Rev",
+      "start": 280,
+      "end": 301,
+      "color": "#2196F3",
+      "strand": -1
+    }
+  ],
+  "primer_structure": {
+    "sequence": "GCTGAAGAGCAAAGCATGGGT",
+    "length": 21,
+    "tm_celsius": null,
+    "gc_percent": 52.38,
+    "dot_bracket": "(((....)))...........",
+    "mfe": -3.1
+  },
+  "assay_info": {
+    "target_gene": "ompA (MOMP)",
+    "organism": "Chlamydia trachomatis D/UW-3",
+    "assay_type": "RT-qPCR",
+    "standard": "CLSI EP05-A3",
+    "accession": "AE001273.1"
+  },
+  "source": "ncbi"
+}

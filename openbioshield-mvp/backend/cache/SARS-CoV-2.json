@@ -1,0 +1,44 @@
+{
+  "disease_type": "SARS-CoV-2",
+  "accession": "NC_045512.2",
+  "rdrp_sequence": "AGATTAGCTAATGAGTGTGCTCAAGTATTGAGTGAAATGGTCATGTGTGGCGGTTCACTATATGTTAAACCAGGTGGAACCTCATCAGGAGATGCCACAACTGCTTATGCTAATAGTGTTTTTAACATTTGTCAAGCTGTCACGGCCAATGTTAATGCACTTTTATCTACTGATGGTAACAAAATTGCCGATAAGTATGTCCGCAATTTACAACACAGACTTTATGAGTGTCTCTATAGAAATAGAGATGTTGACACAGACTTTGTGAATGAGTTTTACGCATATTTGCGTAAACATTTCTCAATGATGATACTCTCTGACGATGCTGTTGTGTGTTTCAATAGCACTTATGCATCTCAAGGTCTAGTGGCTAGCATAAAGAACTTTAAGTCAGTTCTTTATTATCAAAACAATGTTTTTATGTCTGAAGCAAAATGTTGGACTGAGACTGACCTTACTAAAGGACCTCATGAATTTTGCTCTCAACATACAATGCTAGTTAAACAGGGTGATGATTATGTGTACCTTCCTTACCCAGATCCATCAAGAATCCTAGGGGCCGGCTGTTTTGTAGATGATATCGTAAAAACAGATGGTACAC",
+  "annotations": [
+    {
+      "name": "RdRp_Fwd",
+      "start": 31,
+      "end": 53,
+      "color": "#4CAF50",
+      "strand": 1
+    },
+    {
+      "name": "RdRp_Probe",
+      "start": 60,
+      "end": 85,
+      "color": "#FF9800",
+      "strand": 1
+    },
+    {
+      "name": "RdRp_Rev",
+      "start": 106,
+      "end": 132,
+      "color": "#2196F3",
+      "strand": -1
+    }
+  ],
+  "primer_structure": {
+    "sequence": "GTGARATGGTCATGTGTGGCGG",
+    "length": 22,
+    "tm_celsius": null,
+    "gc_percent": 57.14,
+    "dot_bracket": "........((((....))))..",
+    "mfe": -2.2
+  },
+  "assay_info": {
+    "target_gene": "RdRp (nsp12)",
+    "organism": "SARS-CoV-2",
+    "assay_type": "RT-qPCR",
+    "standard": "WHO EUL 09.232.01",
+    "accession": "NC_045512.2"
+  },
+  "source": "ncbi"
+}

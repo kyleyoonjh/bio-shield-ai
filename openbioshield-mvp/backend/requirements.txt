@@ -7,3 +7,8 @@ statsmodels
 python-multipart
 openai
 python-dotenv
+httpx
+primer3-py
+ViennaRNA
+supabase>=2.4.0
+pyyaml

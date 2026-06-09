@@ -1,0 +1,44 @@
+{
+  "disease_type": "HPV",
+  "accession": "NC_001526.4",
+  "rdrp_sequence": "TAGTGAAAGACACACTATATGCCAAACACCACTTACAAATATTTTAAATGTACTAAAAACTAGTAATGCAAAGGCAGCAATGTTAGCAAAATTTAAAGAGTTATACGGGGTGAGTTTTTCAGAATTAGTAAGACCATTTAAAAGTAATAAATCAACGTGTTGCGATTGGTGTATTGCTGCATTTGGACTTACACCCAGTATAGCTGACAGTATAAAAACACTATTACAACAATATTGTTTATATTTACACATTCAAAGTTTAGCATGTTCATGGGGAATGGTTGTGTTACTATTAGTAAGATATAAATGTGGAAAAAATAGAGAAACAATTGAAAAATTGCTGTCTAAACTATTATGTGTG",
+  "annotations": [
+    {
+      "name": "E7_Fwd",
+      "start": 22,
+      "end": 43,
+      "color": "#4CAF50",
+      "strand": 1
+    },
+    {
+      "name": "E7_Probe",
+      "start": 60,
+      "end": 84,
+      "color": "#FF9800",
+      "strand": 1
+    },
+    {
+      "name": "E7_Rev",
+      "start": 280,
+      "end": 301,
+      "color": "#2196F3",
+      "strand": -1
+    }
+  ],
+  "primer_structure": {
+    "sequence": "CGAAACCGAAGTCAAAGACAC",
+    "length": 21,
+    "tm_celsius": null,
+    "gc_percent": 47.62,
+    "dot_bracket": "..........(((...)))..",
+    "mfe": -0.7
+  },
+  "assay_info": {
+    "target_gene": "E7 Oncogene",
+    "organism": "Human Papillomavirus Type 16",
+    "assay_type": "PCR",
+    "standard": "CLSI EP05-A3",
+    "accession": "NC_001526.4"
+  },
+  "source": "ncbi"
+}
