@@ -1,0 +1,28 @@
+{
+  "assay_id": "8f2e6d2a-bd42-4e44-abd9-2abbbc29acac",
+  "generated_at": "2026-06-09T07:06:19.680934Z",
+  "total_candidates": 1,
+  "top_candidates": [
+    {
+      "rank": 1,
+      "forward": "ATGTCTGATAATGGACCCCA",
+      "reverse": "TTCCACACCATGTTTGCTCC",
+      "final_score": 78.492,
+      "coverage_score": 100.0,
+      "thermo_score": 39.75,
+      "ai_score": 52.71,
+      "tm_fwd": 44.6,
+      "tm_rev": 46.65,
+      "gc_fwd": 45.0,
+      "gc_rev": 50.0,
+      "product_size": 267,
+      "specificity": 75.0,
+      "penalty_reason": "Fwd Tm deviation 15.4°C; Rev Tm deviation 13.3°C; Tm delta 2.0°C"
+    }
+  ],
+  "score_weights": {
+    "coverage": 0.6,
+    "thermo": 0.2,
+    "ai": 0.2
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "assay_id": "test-001",
+  "generated_at": "2026-06-09T07:27:58.652897Z",
+  "total_candidates": 2,
+  "top_candidates": [
+    {
+      "rank": 1,
+      "forward": "TGGACCCCAAAATCAGCGAA",
+      "reverse": "TTGAGTGAGAGCGGTGAACC",
+      "final_score": 0.812,
+      "coverage_score": 95.0,
+      "thermo_score": 100.0,
+      "ai_score": 72.5,
+      "tm_fwd": 62.9,
+      "tm_rev": 62.9,
+      "gc_fwd": 50.0,
+      "gc_rev": 55.0,
+      "product_size": 140,
+      "specificity": 1.0,
+      "penalty_reason": "Pass"
+    },
+    {
+      "rank": 2,
+      "forward": "CCCACTGCGTTCTCCATTCT",
+      "reverse": "TTGAGTGAGAGCGGTGAACC",
+      "final_score": 0.754,
+      "coverage_score": 88.0,
+      "thermo_score": 95.0,
+      "ai_score": 68.0,
+      "tm_fwd": 61.5,
+      "tm_rev": 62.9,
+      "gc_fwd": 55.0,
+      "gc_rev": 55.0,
+      "product_size": 125,
+      "specificity": 1.0,
+      "penalty_reason": "Pass"
+    }
+  ],
+  "score_weights": {
+    "coverage": 0.6,
+    "thermo": 0.2,
+    "ai": 0.2
+  }
+}

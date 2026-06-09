@@ -1,0 +1,92 @@
+{
+  "assay_id": "f7956414-1cb2-4904-b038-3f9af35a3f9d",
+  "generated_at": "2026-06-09T07:30:43.884283Z",
+  "total_candidates": 10,
+  "top_candidates": [
+    {
+      "rank": 1,
+      "forward": "TGGACCCCAAAATCAGCGAA",
+      "reverse": "TTGAGTGAGAGCGGTGAACC",
+      "final_score": 93.77,
+      "coverage_score": 100.0,
+      "thermo_score": 100.0,
+      "ai_score": 68.85,
+      "tm_fwd": 62.9,
+      "tm_rev": 62.91,
+      "gc_fwd": 50.0,
+      "gc_rev": 55.0,
+      "product_size": 163,
+      "specificity": 75.0,
+      "penalty_reason": "Pass"
+    },
+    {
+      "rank": 2,
+      "forward": "TGGACCCCAAAATCAGCGAA",
+      "reverse": "GGGCCGACGTTGTTTTGATC",
+      "final_score": 93.752,
+      "coverage_score": 100.0,
+      "thermo_score": 100.0,
+      "ai_score": 68.76,
+      "tm_fwd": 62.9,
+      "tm_rev": 62.98,
+      "gc_fwd": 50.0,
+      "gc_rev": 55.0,
+      "product_size": 115,
+      "specificity": 75.0,
+      "penalty_reason": "Pass"
+    },
+    {
+      "rank": 3,
+      "forward": "TGGACCCCAAAATCAGCGAA",
+      "reverse": "CCATGTTGAGTGAGAGCGGT",
+      "final_score": 93.73,
+      "coverage_score": 100.0,
+      "thermo_score": 100.0,
+      "ai_score": 68.65,
+      "tm_fwd": 62.9,
+      "tm_rev": 62.99,
+      "gc_fwd": 50.0,
+      "gc_rev": 55.0,
+      "product_size": 168,
+      "specificity": 75.0,
+      "penalty_reason": "Pass"
+    },
+    {
+      "rank": 4,
+      "forward": "GGTTCACCGCTCTCACTCAA",
+      "reverse": "TCCACACCATGTTTGCTCCA",
+      "final_score": 93.666,
+      "coverage_score": 100.0,
+      "thermo_score": 100.0,
+      "ai_score": 68.33,
+      "tm_fwd": 62.91,
+      "tm_rev": 62.83,
+      "gc_fwd": 55.0,
+      "gc_rev": 50.0,
+      "product_size": 152,
+      "specificity": 75.0,
+      "penalty_reason": "Pass"
+    },
+    {
+      "rank": 5,
+      "forward": "ACCGCTCTCACTCAACATGG",
+      "reverse": "TCCACACCATGTTTGCTCCA",
+      "final_score": 93.624,
+      "coverage_score": 100.0,
+      "thermo_score": 100.0,
+      "ai_score": 68.12,
+      "tm_fwd": 62.99,
+      "tm_rev": 62.83,
+      "gc_fwd": 55.0,
+      "gc_rev": 50.0,
+      "product_size": 147,
+      "specificity": 75.0,
+      "penalty_reason": "Pass"
+    }
+  ],
+  "score_weights": {
+    "coverage": 0.6,
+    "thermo": 0.2,
+    "ai": 0.2
+  }
+}

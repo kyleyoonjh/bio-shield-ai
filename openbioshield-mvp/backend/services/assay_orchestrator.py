@@ -17,6 +17,7 @@ no direct PostgreSQL connections (company firewall blocks 5432/6543).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from datetime import datetime
@@ -66,6 +67,7 @@ class AssayOrchestrator:
             logger.info("[pipeline] assay=%s step=%d/%d — %s", assay_id, step, total_steps, msg)
             if progress_cb:
                 await progress_cb(step, total_steps, msg)
+            await asyncio.sleep(1.0)  # 1 s pause so UI can show each stage clearly
 
         try:
             await self._update_status(assay_id, "RUNNING")
@@ -86,48 +88,46 @@ class AssayOrchestrator:
             if not raw_candidates:
                 raise ValueError("Primer3 produced no candidates — try relaxing parameters")
 
-            # Steps 4–7 — Per-candidate validation & scoring
-            await _progress(4, f"Validating {len(raw_candidates)} candidates")
-            validated: list[dict] = []
-
+            # Step 4 — Specificity filter
+            await _progress(4, f"Running off-target specificity filter ({len(raw_candidates)} candidates)")
+            validated_spec: list[dict] = []
             for cand in raw_candidates:
-                # Step 4: Specificity hard filter
-                spec = self.off_target.validate_specificity(
-                    cand["forward"], cand["reverse"]
-                )
+                spec = self.off_target.validate_specificity(cand["forward"], cand["reverse"])
                 if not spec["is_valid"]:
                     continue
-
                 cand["specificity_valid"] = True
                 cand["specificity_score"] = spec["specificity_score"]
+                validated_spec.append(cand)
+            if not validated_spec:
+                raise ValueError("All candidates failed specificity filter")
+            logger.info("[pipeline] step 4 → %d/%d passed specificity", len(validated_spec), len(raw_candidates))
 
-                # Step 5: Coverage
-                cov = self.coverage.calculate_coverage(
-                    cand["forward"], cand["reverse"], fasta_path
-                )
+            # Step 5 — Coverage scoring
+            await _progress(5, f"Calculating variant coverage ({len(validated_spec)} candidates)")
+            for cand in validated_spec:
+                cov = self.coverage.calculate_coverage(cand["forward"], cand["reverse"], fasta_path)
                 cand["coverage_score"] = cov["coverage_score"]
 
-                # Step 6: Thermodynamics
+            # Step 6 — Thermodynamic scoring
+            await _progress(6, "Thermodynamic scoring (Tm, GC, dimer, hairpin)")
+            for cand in validated_spec:
                 thermo = self.thermo.evaluate_kinetics(cand["forward"], cand["reverse"])
                 cand.update(thermo)
 
-                # Step 7: AI scoring
+            # Step 7 — AI efficiency scoring
+            await _progress(7, "AI efficiency scoring")
+            for cand in validated_spec:
                 ai = self.ai_scoring.predict_efficiency(cand)
                 cand["ai_score"] = ai["ai_score"]
 
-                validated.append(cand)
-
-            if not validated:
-                raise ValueError("All candidates failed specificity filter")
-
-            await _progress(5, f"{len(validated)} candidates passed filters")
+            validated = validated_spec
 
             # Step 8 — Ranking
-            await _progress(8, "Computing final rankings")
+            await _progress(8, "Computing weighted final rankings")
             ranked = self.ranking.calculate_final_rankings(validated)
 
             # Step 9 — Report
-            await _progress(9, "Generating report")
+            await _progress(9, "Generating HTML + PDF report")
             report_path = self.report.generate_summary(assay_id, ranked)
 
             await self._update_status(assay_id, "COMPLETED", report_path=report_path)

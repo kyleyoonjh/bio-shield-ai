@@ -1,0 +1,92 @@
+{
+  "assay_id": "56b97a0e-6f5a-4cc1-af93-f832f1ac66a9",
+  "generated_at": "2026-06-09T07:43:47.065255Z",
+  "total_candidates": 10,
+  "top_candidates": [
+    {
+      "rank": 1,
+      "forward": "TCTTCTCAACGTGCCACTCC",
+      "reverse": "AGGTCCTTGATGTCACAGCG",
+      "final_score": 93.846,
+      "coverage_score": 100.0,
+      "thermo_score": 100.0,
+      "ai_score": 69.23,
+      "tm_fwd": 62.91,
+      "tm_rev": 62.99,
+      "gc_fwd": 55.0,
+      "gc_rev": 55.0,
+      "product_size": 138,
+      "specificity": 75.0,
+      "penalty_reason": "Pass"
+    },
+    {
+      "rank": 2,
+      "forward": "TCTTCTCAACGTGCCACTCC",
+      "reverse": "GGCAGGTCCTTGATGTCACA",
+      "final_score": 93.828,
+      "coverage_score": 100.0,
+      "thermo_score": 100.0,
+      "ai_score": 69.14,
+      "tm_fwd": 62.91,
+      "tm_rev": 62.95,
+      "gc_fwd": 55.0,
+      "gc_rev": 55.0,
+      "product_size": 141,
+      "specificity": 75.0,
+      "penalty_reason": "Pass"
+    },
+    {
+      "rank": 3,
+      "forward": "TCTTCTCAACGTGCCACTCC",
+      "reverse": "CCTTGATGTCACAGCGTCCT",
+      "final_score": 93.816,
+      "coverage_score": 100.0,
+      "thermo_score": 100.0,
+      "ai_score": 69.08,
+      "tm_fwd": 62.91,
+      "tm_rev": 62.99,
+      "gc_fwd": 55.0,
+      "gc_rev": 55.0,
+      "product_size": 134,
+      "specificity": 75.0,
+      "penalty_reason": "Pass"
+    },
+    {
+      "rank": 4,
+      "forward": "TCTTCTCAACGTGCCACTCC",
+      "reverse": "TCCTTGATGTCACAGCGTCC",
+      "final_score": 93.81,
+      "coverage_score": 100.0,
+      "thermo_score": 100.0,
+      "ai_score": 69.05,
+      "tm_fwd": 62.91,
+      "tm_rev": 62.98,
+      "gc_fwd": 55.0,
+      "gc_rev": 55.0,
+      "product_size": 135,
+      "specificity": 75.0,
+      "penalty_reason": "Pass"
+    },
+    {
+      "rank": 5,
+      "forward": "TGTACGTGCATGGATTGGCT",
+      "reverse": "CAGGCGGTGGTTTAGCACTA",
+      "final_score": 93.798,
+      "coverage_score": 100.0,
+      "thermo_score": 99.89,
+      "ai_score": 69.1,
+      "tm_fwd": 63.01,
+      "tm_rev": 62.99,
+      "gc_fwd": 50.0,
+      "gc_rev": 55.0,
+      "product_size": 182,
+      "specificity": 75.0,
+      "penalty_reason": "Fwd Tm deviation 3.0°C"
+    }
+  ],
+  "score_weights": {
+    "coverage": 0.6,
+    "thermo": 0.2,
+    "ai": 0.2
+  }
+}

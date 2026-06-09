@@ -35,9 +35,10 @@ if os.getenv("SUPABASE_SSL_VERIFY", "true").lower() in ("false", "0", "no"):
 # ─── Client singleton ─────────────────────────────────────────────────────────
 
 try:
-    from supabase import create_client, Client  # type: ignore
+    from supabase import create_client, Client, ClientOptions  # type: ignore
 
     _client: "Client | None" = None
+    _ssl_verify = os.getenv("SUPABASE_SSL_VERIFY", "true").lower() not in ("false", "0", "no")
 
     def _get_client() -> "Client":
         global _client
@@ -48,8 +49,13 @@ try:
                 raise ValueError(
                     "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env"
                 )
-            _client = create_client(url, key)
-            logger.info("[supabase] client initialised → %s", url.split(".")[0])
+            try:
+                options = ClientOptions(httpx_client_options={"verify": _ssl_verify})
+                _client = create_client(url, key, options=options)
+            except TypeError:
+                # Older supabase-py — module-level SSL patch handles verification
+                _client = create_client(url, key)
+            logger.info("[supabase] client initialised → %s (ssl_verify=%s)", url.split(".")[0], _ssl_verify)
         return _client
 
     _SUPABASE_AVAILABLE = True

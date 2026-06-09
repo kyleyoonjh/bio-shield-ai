@@ -26,7 +26,7 @@ _CONFIG_PATH = os.path.join(
 class RankingService:
     def __init__(self, config_path: str = _CONFIG_PATH):
         try:
-            with open(config_path) as f:
+            with open(config_path, encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)["ranking"]
             self.w_coverage = cfg["coverage_weight"]
             self.w_thermo   = cfg["thermo_weight"]

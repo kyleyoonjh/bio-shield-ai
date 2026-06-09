@@ -216,6 +216,7 @@ export interface AssayPrimer {
 export interface AssayStatusResponse {
   job_id: string;
   status: AssayJobStatus;
+  current_step: number;
   report_path: string | null;
   error_message: string | null;
   primers: AssayPrimer[] | null;

@@ -16,8 +16,8 @@ interface JobListEntry {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const POLL_INTERVAL_MS = 3000;
-const POLL_MAX_ATTEMPTS = 120; // 6 minutes
+const POLL_INTERVAL_MS = 300;
+const POLL_MAX_ATTEMPTS = 1200; // 6 minutes (300ms × 1200 = 360s)
 
 // ─── Test data generator ──────────────────────────────────────────────────────
 
@@ -79,22 +79,34 @@ function generateTestMeta() {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-async function parseApiError(res: Response): Promise<string> {
+async function parseApiError(res: Response, callerTag = ""): Promise<string> {
   const text = await res.text().catch(() => "");
-  if (res.status === 404) return "엔드포인트를 찾을 수 없습니다. 백엔드 서버를 재시작해 주세요. (404)";
-  if (res.status === 503) return "백엔드 서버가 응답하지 않습니다. (503)";
+  const url  = res.url || "(unknown url)";
+  const tag  = callerTag ? `[${callerTag}] ` : "";
+
+  console.error(`${tag}HTTP ${res.status} ${res.statusText} ← ${url}`);
+  if (text) console.error(`${tag}응답 본문:`, text);
+
+  if (res.status === 404) {
+    let body = "";
+    try { body = JSON.parse(text)?.detail ?? text; } catch { body = text; }
+    return `${tag}404 Not Found: ${url}\n서버 응답: ${body || "(없음)"}\n→ 서버 터미널에서 [404] 로그를 확인하세요.`;
+  }
+  if (res.status === 503) return `${tag}503 서버 일시적 불가: ${url}`;
   if (res.status === 422) {
     try {
       const json = JSON.parse(text);
-      const msg = json?.detail?.[0]?.msg ?? json?.detail ?? text;
-      return `입력값 오류: ${msg}`;
-    } catch { return `입력값 오류 (422)`; }
+      const fields = Array.isArray(json?.detail)
+        ? json.detail.map((d: any) => `${d.loc?.join(".")}: ${d.msg}`).join(", ")
+        : json?.detail ?? text;
+      return `${tag}422 입력값 오류: ${fields}`;
+    } catch { return `${tag}422 입력값 오류 (${text})`; }
   }
   try {
     const json = JSON.parse(text);
-    return (json?.detail ?? text) || `서버 오류 (${res.status})`;
+    return `${tag}${res.status} 오류: ${json?.detail ?? text}`;
   } catch {
-    return text || `서버 오류 (${res.status})`;
+    return `${tag}${res.status} 오류: ${text || res.statusText}`;
   }
 }
 
@@ -138,6 +150,7 @@ export default function AssayDesignPage() {
   const [result, setResult]           = useState<AssayStatusResponse | null>(null);
   const [errorMsg, setErrorMsg]       = useState<string>("");
   const [pollCount, setPollCount]     = useState(0);
+  const [currentStep, setCurrentStep] = useState(1);
   const [recentJobs, setRecentJobs]   = useState<JobListEntry[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -177,18 +190,22 @@ export default function AssayDesignPage() {
     try {
       const res = await fetch(`/api/v3/assay/status/${jobId}`);
       if (!res.ok) {
-        const msg = await parseApiError(res);
+        const msg = await parseApiError(res, `pollStatus→/api/v3/assay/status/${jobId}`);
         throw new Error(msg);
       }
       const data: AssayStatusResponse = await res.json();
-      console.log(`[assay] poll #${attempt + 1} job=${jobId} status=${data.status}`);
+      console.log(`[assay] poll #${attempt + 1} job=${jobId} status=${data.status} step=${data.current_step}`);
       setPollCount(attempt + 1);
+      if (data.current_step) setCurrentStep(data.current_step);
 
       if (data.status === "COMPLETED") {
         console.log("[assay] ✅ COMPLETED | primers:", data.primers?.length ?? 0, "report:", data.report_path);
         setResult(data);
         setPageState("done");
         loadRecentJobs();
+        if (data.report_path) {
+          window.open(data.report_path, "_blank", "noopener,noreferrer");
+        }
       } else if (data.status === "FAILED") {
         console.error("[assay] ❌ FAILED | error:", data.error_message);
         setErrorMsg(data.error_message ?? "파이프라인 실패");
@@ -207,6 +224,43 @@ export default function AssayDesignPage() {
     }
   }, [loadRecentJobs]);
 
+  // ── Load a past job into the right panel ──────────────────────────────────
+  const loadJob = useCallback(async (job: JobListEntry) => {
+    if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    setCurrentJobId(job.id);
+    setErrorMsg("");
+    setResult(null);
+    setCurrentStep(1);
+
+    if (job.status === "RUNNING") {
+      setPageState("polling");
+      setPollCount(0);
+      pollStatus(job.id, 0);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/v3/assay/status/${job.id}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: AssayStatusResponse = await res.json();
+      if (data.status === "COMPLETED") {
+        setResult(data);
+        setPageState("done");
+        if (data.current_step) setCurrentStep(data.current_step);
+      } else if (data.status === "FAILED") {
+        setErrorMsg(data.error_message ?? "파이프라인 실패");
+        setPageState("error");
+      } else {
+        setPageState("polling");
+        setPollCount(0);
+        pollStatus(job.id, 0);
+      }
+    } catch (err) {
+      setErrorMsg(`작업 불러오기 실패: ${err}`);
+      setPageState("error");
+    }
+  }, [pollStatus]);
+
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(async () => {
     if (!fastaFile || !projectName.trim() || !targetName.trim()) return;
@@ -214,6 +268,7 @@ export default function AssayDesignPage() {
     setErrorMsg("");
     setResult(null);
     setPollCount(0);
+    setCurrentStep(1);
 
     console.group("[assay] 🚀 파이프라인 시작");
     console.log("project:", projectName.trim());
@@ -236,7 +291,7 @@ export default function AssayDesignPage() {
       console.log("응답 status:", res.status, res.statusText);
 
       if (!res.ok) {
-        const msg = await parseApiError(res);
+        const msg = await parseApiError(res, "handleSubmit→/api/v3/assay/design");
         console.error("❌ 업로드 실패:", msg);
         console.groupEnd();
         throw new Error(msg);
@@ -269,16 +324,27 @@ export default function AssayDesignPage() {
     console.group("[assay] 🎲 테스트 데이터 채움");
     console.log("project:", meta.projectName, "| target:", meta.targetName, "| assay:", meta.assayType);
 
-    try {
-      const res = await fetch("/test_sequences.fasta");
-      console.log("FASTA fetch →", res.status, res.url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const file = new File([blob], "test_sequences.fasta", { type: "text/plain" });
-      setFastaFile(file);
-      console.log("✅ static FASTA 로드 완료 | size:", file.size, "bytes");
-    } catch (e) {
-      console.warn("static FASTA 로드 실패 → 랜덤 생성 fallback", e);
+    // Try sequence.fasta → test_sequences.fasta → random fallback
+    const candidates = ["/sequence.fasta", "/test_sequences.fasta"];
+    let loaded = false;
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url);
+        console.log("FASTA fetch →", res.status, res.url);
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        const fname = url.replace("/", "");
+        const file = new File([blob], fname, { type: "text/plain" });
+        setFastaFile(file);
+        console.log(`✅ ${fname} 로드 완료 | size:`, file.size, "bytes");
+        loaded = true;
+        break;
+      } catch (e) {
+        console.warn(`${url} 로드 실패:`, e);
+      }
+    }
+    if (!loaded) {
+      console.warn("static FASTA 없음 → 랜덤 생성 fallback");
       const file = generateTestFasta();
       setFastaFile(file);
       console.log("✅ 랜덤 FASTA 생성 완료 | size:", file.size, "bytes");
@@ -476,23 +542,31 @@ export default function AssayDesignPage() {
               <p className="text-slate-600 text-xs text-center py-4">작업 없음</p>
             ) : (
               <div className="space-y-2">
-                {recentJobs.map(job => (
-                  <div
-                    key={job.id}
-                    className="bg-slate-700/50 rounded-lg p-3 border border-slate-700"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-slate-200 text-xs font-medium truncate">{job.project_name}</p>
-                        <p className="text-slate-500 text-xs truncate">{job.target_name} · {job.assay_type}</p>
+                {recentJobs.map(job => {
+                  const isSelected = job.id === currentJobId;
+                  return (
+                    <div
+                      key={job.id}
+                      onClick={() => loadJob(job)}
+                      className={`rounded-lg p-3 border cursor-pointer transition-all ${
+                        isSelected
+                          ? "bg-violet-900/40 border-violet-500"
+                          : "bg-slate-700/50 border-slate-700 hover:border-slate-500 hover:bg-slate-700"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-slate-200 text-xs font-medium truncate">{job.project_name}</p>
+                          <p className="text-slate-500 text-xs truncate">{job.target_name} · {job.assay_type}</p>
+                        </div>
+                        <StatusBadge status={job.status} />
                       </div>
-                      <StatusBadge status={job.status} />
+                      <p className="text-slate-600 text-xs mt-1.5">
+                        {new Date(job.created_at).toLocaleString("ko-KR")}
+                      </p>
                     </div>
-                    <p className="text-slate-600 text-xs mt-1.5">
-                      {new Date(job.created_at).toLocaleString("ko-KR")}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -544,12 +618,8 @@ export default function AssayDesignPage() {
                   { step: 8, label: "가중치 랭킹" },
                   { step: 9, label: "보고서 생성" },
                 ].map(({ step, label }) => {
-                  const estimatedStep = Math.min(
-                    Math.floor((pollCount / POLL_MAX_ATTEMPTS) * 9) + 1,
-                    9,
-                  );
-                  const isDone    = step < estimatedStep;
-                  const isCurrent = step === estimatedStep;
+                  const isDone    = step < currentStep;
+                  const isCurrent = step === currentStep;
                   return (
                     <div key={step} className="flex items-center gap-3">
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
@@ -602,7 +672,12 @@ export default function AssayDesignPage() {
                   <p className="text-slate-400 text-sm">
                     {result.primers?.length ?? 0}개 최적 프라이머 선별 완료
                     {result.report_path && (
-                      <span className="text-slate-500"> · 보고서: {result.report_path.split("/").pop()}</span>
+                      <> · <a
+                        href={result.report_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 underline underline-offset-2"
+                      >보고서 열기</a></>
                     )}
                   </p>
                 </div>
@@ -661,7 +736,7 @@ export default function AssayDesignPage() {
                               {p.product_size ?? "—"}<span className="text-slate-600">bp</span>
                             </td>
                             <td className="px-3 py-3">
-                              {scoreBar(p.coverage_score)}
+                              {scoreBar(p.coverage_score, 100)}
                             </td>
                             <td className="px-3 py-3">
                               {scoreBar(p.thermo_score, 100)}
@@ -671,13 +746,13 @@ export default function AssayDesignPage() {
                             </td>
                             <td className="px-3 py-3 text-right">
                               <span className={`font-bold ${
-                                (p.final_score ?? 0) >= 0.7
+                                (p.final_score ?? 0) >= 70
                                   ? "text-emerald-400"
-                                  : (p.final_score ?? 0) >= 0.4
+                                  : (p.final_score ?? 0) >= 40
                                   ? "text-amber-400"
                                   : "text-red-400"
                               }`}>
-                                {p.final_score !== null ? p.final_score.toFixed(3) : "—"}
+                                {p.final_score !== null ? p.final_score.toFixed(1) : "—"}
                               </span>
                             </td>
                           </tr>

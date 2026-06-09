@@ -1,0 +1,92 @@
+{
+  "assay_id": "e0ecd4aa-b329-4f50-a348-f630789deece",
+  "generated_at": "2026-06-09T08:04:00.936901Z",
+  "total_candidates": 10,
+  "top_candidates": [
+    {
+      "rank": 1,
+      "forward": "GTGTACATTGGCGACCCTGC",
+      "reverse": "CAACGCCGACAAGTTCCGAG",
+      "final_score": 88.502,
+      "coverage_score": 100.0,
+      "thermo_score": 73.67,
+      "ai_score": 68.84,
+      "tm_fwd": 64.55,
+      "tm_rev": 64.74,
+      "gc_fwd": 60.0,
+      "gc_rev": 60.0,
+      "product_size": 143,
+      "specificity": 75.0,
+      "penalty_reason": "Fwd Tm deviation 4.6°C; Rev Tm deviation 4.7°C"
+    },
+    {
+      "rank": 2,
+      "forward": "ACCCGTGAACTCATGCGTGA",
+      "reverse": "CGGCAGCAGTATACACCCCT",
+      "final_score": 87.632,
+      "coverage_score": 100.0,
+      "thermo_score": 70.1,
+      "ai_score": 68.06,
+      "tm_fwd": 65.06,
+      "tm_rev": 64.68,
+      "gc_fwd": 55.0,
+      "gc_rev": 60.0,
+      "product_size": 188,
+      "specificity": 75.0,
+      "penalty_reason": "Fwd Tm deviation 5.1°C; Rev Tm deviation 4.7°C"
+    },
+    {
+      "rank": 3,
+      "forward": "ACCCGTGAACTCATGCGTGA",
+      "reverse": "ACGGCAGCAGTATACACCCC",
+      "final_score": 87.316,
+      "coverage_score": 100.0,
+      "thermo_score": 67.9,
+      "ai_score": 68.68,
+      "tm_fwd": 65.06,
+      "tm_rev": 64.96,
+      "gc_fwd": 55.0,
+      "gc_rev": 60.0,
+      "product_size": 189,
+      "specificity": 75.0,
+      "penalty_reason": "Fwd Tm deviation 5.1°C; Rev Tm deviation 5.0°C"
+    },
+    {
+      "rank": 4,
+      "forward": "ACCCGTGAACTCATGCGTGA",
+      "reverse": "GCTCATGTTCACGGCAGCAG",
+      "final_score": 87.106,
+      "coverage_score": 100.0,
+      "thermo_score": 66.48,
+      "ai_score": 69.05,
+      "tm_fwd": 65.06,
+      "tm_rev": 65.13,
+      "gc_fwd": 55.0,
+      "gc_rev": 60.0,
+      "product_size": 199,
+      "specificity": 75.0,
+      "penalty_reason": "Fwd Tm deviation 5.1°C; Rev Tm deviation 5.1°C"
+    },
+    {
+      "rank": 5,
+      "forward": "GTGAGCTTAACGGAGGGGCA",
+      "reverse": "ACGGCAGCAGTATACACCCC",
+      "final_score": 87.088,
+      "coverage_score": 100.0,
+      "thermo_score": 67.03,
+      "ai_score": 68.41,
+      "tm_fwd": 65.17,
+      "tm_rev": 64.96,
+      "gc_fwd": 60.0,
+      "gc_rev": 60.0,
+      "product_size": 173,
+      "specificity": 75.0,
+      "penalty_reason": "Fwd Tm deviation 5.2°C; Rev Tm deviation 5.0°C"
+    }
+  ],
+  "score_weights": {
+    "coverage": 0.6,
+    "thermo": 0.2,
+    "ai": 0.2
+  }
+}

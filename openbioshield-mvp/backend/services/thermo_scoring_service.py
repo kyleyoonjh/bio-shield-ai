@@ -103,13 +103,23 @@ class ThermoScoringService:
 
     @staticmethod
     def _calc_tm(seq: str) -> float:
+        """Nearest-neighbor Tm with standard PCR conditions (SantaLucia 1998)."""
         if _PRIMER3_AVAILABLE:
             try:
-                return _primer3.calc_tm(seq)
+                return _primer3.calc_tm(
+                    seq,
+                    mv_conc=50.0,    # 50 mM monovalent (K+/Na+)
+                    dv_conc=1.5,     # 1.5 mM Mg2+
+                    dntp_conc=0.2,   # 0.2 mM dNTPs
+                    dna_conc=250.0,  # 250 nM primer
+                    tm_method="santalucia",
+                    salt_corrections_method="santalucia",
+                )
             except Exception:
                 pass
+        # Salt-corrected formula fallback (Howley 1979)
         gc = (seq.count("G") + seq.count("C")) / len(seq)
-        return 81.5 + 16.6 * math.log10(0.05) + 41 * gc - 675 / len(seq)
+        return 81.5 + 16.6 * math.log10(0.05) + 41.0 * gc - 675.0 / len(seq)
 
     @staticmethod
     def _gc(seq: str) -> float:
@@ -117,20 +127,26 @@ class ThermoScoringService:
 
     @staticmethod
     def _self_dimer_dg(seq: str) -> float:
+        """Self-dimer ΔG in kcal/mol (negative = more stable = worse)."""
         if _PRIMER3_AVAILABLE:
             try:
-                result = _primer3.calc_homodimer(seq)
-                return result.dg / 1000  # J → kcal/mol
+                result = _primer3.calc_homodimer(
+                    seq, mv_conc=50.0, dv_conc=1.5, dntp_conc=0.2, dna_conc=250.0
+                )
+                return result.dg / 1000.0  # cal/mol → kcal/mol
             except Exception:
                 pass
         return 0.0
 
     @staticmethod
     def _hairpin_dg(seq: str) -> float:
+        """Hairpin ΔG in kcal/mol."""
         if _PRIMER3_AVAILABLE:
             try:
-                result = _primer3.calc_hairpin(seq)
-                return result.dg / 1000
+                result = _primer3.calc_hairpin(
+                    seq, mv_conc=50.0, dv_conc=1.5, dntp_conc=0.2, dna_conc=250.0
+                )
+                return result.dg / 1000.0  # cal/mol → kcal/mol
             except Exception:
                 pass
         return 0.0

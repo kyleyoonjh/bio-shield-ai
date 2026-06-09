@@ -14,8 +14,10 @@ from dotenv import load_dotenv
 # (e.g. SUPABASE_SSL_VERIFY) are visible when module-level code executes.
 load_dotenv()
 
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from services.ai_service import generate_report, map_schema, map_schema_ep09
@@ -52,6 +54,23 @@ app.add_middleware(
 )
 app.include_router(v2_router)
 app.include_router(assay_router)
+
+_REPORTS_DIR = os.path.join(os.path.dirname(__file__), "reports")
+os.makedirs(_REPORTS_DIR, exist_ok=True)
+app.mount("/reports", StaticFiles(directory=_REPORTS_DIR), name="reports")
+
+
+@app.on_event("startup")
+async def _log_routes():
+    routes = [f"  {m:6s} {r.path}" for r in app.routes if hasattr(r, "methods") for m in r.methods]
+    logger.info("[startup] 등록된 라우트 %d개:\n%s", len(routes), "\n".join(sorted(routes)))
+
+
+@app.exception_handler(404)
+async def _not_found_handler(request: Request, exc: Exception):
+    logger.warning("[404] %s %s — 등록된 경로 없음", request.method, request.url.path)
+    return JSONResponse(status_code=404, content={"detail": f"Not Found: {request.method} {request.url.path}"})
+
 
 SUPPORTED_DISEASES = ("SARS-CoV-2", "HPV", "STI")
 
