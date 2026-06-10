@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 import os
 from datetime import datetime
 from typing import Any
@@ -62,37 +63,48 @@ class AssayOrchestrator:
         Updates Supabase assay status via supabase_service.
         """
         total_steps = 9
+        t_pipeline  = time.perf_counter()
 
         async def _progress(step: int, msg: str):
-            logger.info("[pipeline] assay=%s step=%d/%d — %s", assay_id, step, total_steps, msg)
+            elapsed = time.perf_counter() - t_pipeline
+            logger.info("[pipeline] step=%d/%d elapsed=%.1fs | %s | assay=%s",
+                        step, total_steps, elapsed, msg, assay_id)
             if progress_cb:
                 await progress_cb(step, total_steps, msg)
 
         try:
             await self._update_status(assay_id, "RUNNING")
 
-            # ── All CPU-bound steps run in a thread so the event loop stays free ──
-
             # Step 1 — MSA
-            await _progress(1, "Running MAFFT alignment")
+            await _progress(1, "MAFFT alignment")
+            t = time.perf_counter()
             aligned = await asyncio.to_thread(self.alignment.run_mafft, fasta_path)
+            logger.info("[pipeline] step=1 DONE | sequences=%d elapsed=%.2fs",
+                        len(aligned) if aligned else 0, time.perf_counter() - t)
 
             # Step 2 — Conserved regions
-            await _progress(2, "Detecting conserved regions (Shannon entropy)")
+            await _progress(2, "Shannon entropy conserved regions")
+            t = time.perf_counter()
             regions = await asyncio.to_thread(self.conservation.find_regions, aligned)
+            logger.info("[pipeline] step=2 DONE | regions=%d elapsed=%.2fs",
+                        len(regions), time.perf_counter() - t)
             if not regions:
                 raise ValueError("No conserved regions found — check input diversity")
 
             # Step 3 — Primer3 candidates
-            await _progress(3, "Generating primer candidates (Primer3)")
+            await _progress(3, "Primer3 candidate generation")
+            t = time.perf_counter()
             raw_candidates = await asyncio.to_thread(
                 self.candidate.generate_primers, regions, advanced_options, assay_type
             )
+            logger.info("[pipeline] step=3 DONE | candidates=%d elapsed=%.2fs",
+                        len(raw_candidates), time.perf_counter() - t)
             if not raw_candidates:
                 raise ValueError("Primer3 produced no candidates — try relaxing parameters")
 
             # Step 4 — Specificity filter
-            await _progress(4, f"Running off-target specificity filter ({len(raw_candidates)} candidates)")
+            await _progress(4, f"Off-target specificity filter ({len(raw_candidates)} candidates)")
+            t = time.perf_counter()
 
             def _run_specificity(candidates):
                 out = []
@@ -108,12 +120,14 @@ class AssayOrchestrator:
                 return out
 
             validated_spec: list[dict] = await asyncio.to_thread(_run_specificity, raw_candidates)
+            logger.info("[pipeline] step=4 DONE | passed=%d/%d elapsed=%.2fs",
+                        len(validated_spec), len(raw_candidates), time.perf_counter() - t)
             if not validated_spec:
                 raise ValueError("All candidates failed specificity filter")
-            logger.info("[pipeline] step 4 → %d/%d passed specificity", len(validated_spec), len(raw_candidates))
 
             # Step 5 — Coverage scoring
-            await _progress(5, f"Calculating variant coverage ({len(validated_spec)} candidates)")
+            await _progress(5, f"Variant coverage ({len(validated_spec)} candidates)")
+            t = time.perf_counter()
 
             def _run_coverage(candidates, fp):
                 for cand in candidates:
@@ -122,9 +136,11 @@ class AssayOrchestrator:
                 return candidates
 
             validated_spec = await asyncio.to_thread(_run_coverage, validated_spec, fasta_path)
+            logger.info("[pipeline] step=5 DONE | elapsed=%.2fs", time.perf_counter() - t)
 
             # Step 6 — Thermodynamic scoring
-            await _progress(6, "Thermodynamic scoring (Tm, GC, dimer, hairpin, cross-dimer)")
+            await _progress(6, "Thermodynamic scoring (Tm, GC, dimer, hairpin)")
+            t = time.perf_counter()
 
             def _run_thermo(candidates):
                 for cand in candidates:
@@ -139,9 +155,11 @@ class AssayOrchestrator:
                 return candidates
 
             validated_spec = await asyncio.to_thread(_run_thermo, validated_spec)
+            logger.info("[pipeline] step=6 DONE | elapsed=%.2fs", time.perf_counter() - t)
 
             # Step 7 — AI efficiency scoring
             await _progress(7, "AI efficiency scoring")
+            t = time.perf_counter()
 
             def _run_ai(candidates):
                 for cand in candidates:
@@ -150,45 +168,54 @@ class AssayOrchestrator:
                 return candidates
 
             validated = await asyncio.to_thread(_run_ai, validated_spec)
+            logger.info("[pipeline] step=7 DONE | elapsed=%.2fs", time.perf_counter() - t)
 
             # Step 8 — Ranking
-            await _progress(8, "Computing weighted final rankings")
+            await _progress(8, "Weighted final ranking")
+            t = time.perf_counter()
             ranked = await asyncio.to_thread(self.ranking.calculate_final_rankings, validated)
+            logger.info("[pipeline] step=8 DONE | ranked=%d elapsed=%.2fs",
+                        len(ranked), time.perf_counter() - t)
 
             # Step 9 — Report
-            await _progress(9, "Generating HTML + PDF report")
+            await _progress(9, "HTML + PDF report generation")
+            t = time.perf_counter()
             report_html = await asyncio.to_thread(self.report.generate_summary, assay_id, ranked)
             report_path = f"/api/v3/assay/report/{assay_id}"
+            html_kb = len(report_html) // 1024 if report_html else 0
+            logger.info("[pipeline] step=9 DONE | html_kb=%d elapsed=%.2fs",
+                        html_kb, time.perf_counter() - t)
 
-            # Persist top primers BEFORE marking COMPLETED to avoid race condition
-            logger.info("[pipeline] _save_primers 호출 | ranked count=%d", len(ranked))
-            if ranked:
-                logger.info("[pipeline] ranked[0] keys: %s", list(ranked[0].keys()))
-                logger.info("[pipeline] ranked[0] sample: forward=%s gc_fwd=%s gc_rev=%s tm_fwd=%s",
-                    ranked[0].get("forward","?")[:12],
-                    ranked[0].get("gc_fwd","MISSING"),
-                    ranked[0].get("gc_rev","MISSING"),
-                    ranked[0].get("tm_fwd","MISSING"))
+            # Save top primers → mark COMPLETED
             await self._save_primers(assay_id, ranked[:10])
-
             await self._update_status(
                 assay_id, "COMPLETED",
                 report_path=report_path,
                 report_html=report_html,
             )
 
+            total_elapsed = time.perf_counter() - t_pipeline
+            logger.info(
+                "[pipeline] ✅ COMPLETED | assay=%s total=%.1fs "
+                "candidates=%d passed=%d ranked=%d",
+                assay_id, total_elapsed, len(raw_candidates), len(validated), len(ranked),
+            )
+
             return {
                 "report_path":   report_path,
                 "ranked_primers": ranked,
                 "stats": {
-                    "total_generated":  len(raw_candidates),
-                    "passed_filter":    len(validated),
+                    "total_generated":   len(raw_candidates),
+                    "passed_filter":     len(validated),
                     "conserved_regions": len(regions),
+                    "elapsed_seconds":   round(total_elapsed, 1),
                 },
             }
 
         except Exception as exc:
-            logger.exception("[pipeline] assay=%s FAILED: %s", assay_id, exc)
+            elapsed = time.perf_counter() - t_pipeline
+            logger.exception("[pipeline] ❌ FAILED | assay=%s elapsed=%.1fs error=%s",
+                             assay_id, elapsed, exc)
             await self._update_status(assay_id, "FAILED", error=str(exc))
             raise
 
@@ -202,6 +229,7 @@ class AssayOrchestrator:
         report_html: str | None = None,
         error: str | None = None,
     ) -> None:
+        t0 = time.perf_counter()
         try:
             from services.supabase_service import _get_client
             client = _get_client()
@@ -213,15 +241,20 @@ class AssayOrchestrator:
             if error:
                 payload["error_message"] = error[:500]
             _id = str(assay_id)
+            html_kb = len(report_html) // 1024 if report_html else 0
             await asyncio.to_thread(
                 lambda: client.table("assay_jobs").update(payload).eq("id", _id).execute()
             )
+            logger.info("[update_status] %s | assay=%s html_kb=%d elapsed=%.0fms",
+                        status, assay_id, html_kb, (time.perf_counter() - t0) * 1000)
         except Exception as exc:
-            logger.warning("[pipeline] Supabase status update failed: %s", exc)
+            logger.warning("[update_status] FAILED | assay=%s status=%s error=%s elapsed=%.0fms",
+                           assay_id, status, exc, (time.perf_counter() - t0) * 1000)
 
     @staticmethod
     async def _save_primers(assay_id, ranked: list[dict]) -> None:
         _PROBE_COLS = {"probe_sequence", "tm_fwd", "tm_rev", "tm_probe", "probe_center_score"}
+        t0 = time.perf_counter()
         try:
             from services.supabase_service import _get_client
             client = _get_client()
@@ -248,17 +281,23 @@ class AssayOrchestrator:
                 for c in ranked
             ]
             if not rows:
-                logger.warning("[pipeline] _save_primers: rows is empty — nothing to insert!")
+                logger.warning("[save_primers] SKIP — no rows to insert | assay=%s", assay_id)
                 return
-            logger.info("[pipeline] _save_primers: inserting %d rows", len(rows))
+
+            has_probe = any(r.get("probe_sequence") for r in rows)
+            logger.info("[save_primers] INSERT %d rows | assay=%s has_probe=%s",
+                        len(rows), assay_id, has_probe)
             try:
                 res = await asyncio.to_thread(
                     lambda: client.table("assay_primers").insert(rows).execute()
                 )
-                logger.info("[pipeline] _save_primers INSERT OK: %d rows saved", len(res.data or []))
+                logger.info("[save_primers] INSERT OK | assay=%s saved=%d elapsed=%.0fms",
+                            assay_id, len(res.data or []), (time.perf_counter() - t0) * 1000)
             except Exception as probe_exc:
                 logger.warning(
-                    "[pipeline] full primer INSERT failed (%s) — retrying without probe columns", probe_exc
+                    "[save_primers] full INSERT failed — retrying without probe cols | "
+                    "assay=%s error=%s elapsed=%.0fms",
+                    assay_id, probe_exc, (time.perf_counter() - t0) * 1000,
                 )
                 base_rows = [
                     {k: v for k, v in row.items() if k not in _PROBE_COLS}
@@ -268,8 +307,11 @@ class AssayOrchestrator:
                     res2 = await asyncio.to_thread(
                         lambda: client.table("assay_primers").insert(base_rows).execute()
                     )
-                    logger.info("[pipeline] _save_primers base INSERT OK: %d rows saved", len(res2.data or []))
+                    logger.info("[save_primers] base INSERT OK | assay=%s saved=%d elapsed=%.0fms",
+                                assay_id, len(res2.data or []), (time.perf_counter() - t0) * 1000)
                 except Exception as base_exc:
-                    logger.error("[pipeline] _save_primers base INSERT also failed: %s", base_exc)
+                    logger.error("[save_primers] base INSERT FAILED | assay=%s error=%s elapsed=%.0fms",
+                                 assay_id, base_exc, (time.perf_counter() - t0) * 1000)
         except Exception as exc:
-            logger.error("[pipeline] Supabase primer save OUTER failed: %s", exc)
+            logger.error("[save_primers] OUTER FAILED | assay=%s error=%s elapsed=%.0fms",
+                         assay_id, exc, (time.perf_counter() - t0) * 1000)
