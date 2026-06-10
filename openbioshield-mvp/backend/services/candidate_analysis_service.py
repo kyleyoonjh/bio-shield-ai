@@ -337,8 +337,11 @@ class CandidateAnalysisService:
                         left_pos     = result.get(f"PRIMER_LEFT_{i}",     (0, 0))
                         right_pos    = result.get(f"PRIMER_RIGHT_{i}",    (0, 0))
                         amp_start    = left_pos[0]
-                        amp_end      = right_pos[0] + right_pos[1]
+                        # right_pos[0] = 3'-end of right primer (0-based inclusive);
+                        # +1 makes it an exclusive end consistent with product_size calculation.
+                        amp_end      = right_pos[0] + 1
                         amp_len      = max(amp_end - amp_start, 1)
+                        # internal_pos[0] = 5'-start of probe, internal_pos[1] = length
                         probe_center = (internal_pos[0] + internal_pos[1] / 2) - amp_start
                         amp_center   = amp_len / 2
                         offset_pct   = abs(probe_center - amp_center) / amp_len

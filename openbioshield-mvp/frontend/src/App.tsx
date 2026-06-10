@@ -5,24 +5,26 @@ import PrimerStructure from "./components/PrimerStructure";
 import RiskEnginePage from "./components/RiskEnginePage";
 import DataCollectionPage from "./components/DataCollectionPage";
 import AssayDesignPage from "./components/AssayDesignPage";
+import CovidDashboard from "./components/covid/CovidDashboard";
 import { ToastContainer, makeToast } from "./components/Toast";
 import type { ToastMessage } from "./components/Toast";
 import type { DiseaseType, VariantInfo, Mutation } from "./types";
 
-// Phase 1: DNA 탐색 + Primer 구조만 (통계 검증은 Phase 2로 이동)
-type Tab = "dna" | "primer";
+// Phase 1: Covid 대시보드 · DNA 탐색 · Primer 구조
+type Tab = "covid" | "dna" | "primer";
 type Phase = "1" | "2" | "3";
 // Phase 2에 통계 검증(stat-validation) 추가
 type Phase2Page = "risk-engine" | "stat-validation" | "data-collection";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "dna",    label: "DNA 맵",      icon: "🧬" },
-  { id: "primer", label: "Primer 구조", icon: "🔬" },
+  { id: "covid",  label: "Covid Dashboard", icon: "🦠" },
+  { id: "dna",    label: "DNA 맵",           icon: "🧬" },
+  { id: "primer", label: "Primer 구조",      icon: "🔬" },
 ];
 
 const PHASE2_PAGES: { id: Phase2Page; label: string; icon: string }[] = [
-  { id: "risk-engine",     label: "Risk Engine",     icon: "⚡" },
   { id: "stat-validation", label: "통계 검증",         icon: "📊" },
+  { id: "risk-engine",     label: "Risk Engine",     icon: "⚡" },
   { id: "data-collection", label: "Data Collection", icon: "🗄️" },
 ];
 
@@ -33,9 +35,9 @@ const DISEASES: { id: DiseaseType; label: string }[] = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab]   = useState<Tab>("dna");
+  const [activeTab, setActiveTab]   = useState<Tab>("covid");
   const [phase, setPhase]           = useState<Phase>("1");
-  const [phase2Page, setPhase2Page] = useState<Phase2Page>("risk-engine");
+  const [phase2Page, setPhase2Page] = useState<Phase2Page>("stat-validation");
 
   const [disease, setDisease]                     = useState<DiseaseType>("SARS-CoV-2");
   const [variant, setVariant]                     = useState<string>("wild-type");
@@ -210,13 +212,14 @@ export default function App() {
               );
             })}
 
-            {variant !== "wild-type" && (
+            {activeTab !== "covid" && variant !== "wild-type" && (
               <span className="text-xs bg-red-50 border border-red-200 text-red-700 rounded-full px-3 py-1 font-semibold whitespace-nowrap">
                 {currentVariantLabel}
               </span>
             )}
 
-            {renderDiseaseVariantSelectors()}
+            {/* Covid 탭에서는 병원균 고정(SARS-CoV-2) → 셀렉터 숨김 */}
+            {activeTab !== "covid" && renderDiseaseVariantSelectors()}
           </div>
         </nav>
       )}
@@ -255,6 +258,11 @@ export default function App() {
 
       {/* ── Main ───────────────────────────────────────────────────────────── */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8">
+
+        {/* Phase 1 — Covid 대시보드 (병원균 SARS-CoV-2 고정) */}
+        {phase === "1" && activeTab === "covid" && (
+          <CovidDashboard />
+        )}
 
         {/* Phase 1 — DNA 탐색 / Primer 구조 */}
         {phase === "1" && activeTab === "dna" && (

@@ -86,13 +86,16 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
     <thead>
       <tr>
         <th>#</th>
-        <th>Forward Primer (5'→3')</th>
-        <th>Reverse Primer (5'→3')</th>
-        <th>Tm Fwd</th>
-        <th>Tm Rev</th>
-        <th>GC Fwd</th>
-        <th>GC Rev</th>
+        <th>Forward (5'→3')</th>
+        {% if top_candidates and top_candidates[0].probe %}<th>Probe (5'→3')</th>{% endif %}
+        <th>Reverse (5'→3')</th>
+        <th>Tm F</th>
+        {% if top_candidates and top_candidates[0].probe %}<th>Tm P</th>{% endif %}
+        <th>Tm R</th>
+        <th>GC F</th>
+        <th>GC R</th>
         <th>Product</th>
+        {% if top_candidates and top_candidates[0].probe %}<th>중앙도</th>{% endif %}
         <th>Coverage</th>
         <th>Thermo</th>
         <th>AI</th>
@@ -105,12 +108,21 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
       <tr>
         <td><strong>{{ c.rank }}</strong></td>
         <td><span class="seq">{{ c.forward }}</span></td>
+        {% if top_candidates[0].probe %}
+        <td><span class="seq" style="color:#b45309">{{ c.probe or "—" }}</span></td>
+        {% endif %}
         <td><span class="seq">{{ c.reverse }}</span></td>
-        <td>{{ "%.1f" | format(c.tm_fwd) }}°C</td>
-        <td>{{ "%.1f" | format(c.tm_rev) }}°C</td>
+        <td>{{ "%.1f" | format(c.tm_fwd) if c.tm_fwd is not none else "—" }}°C</td>
+        {% if top_candidates[0].probe %}
+        <td>{{ "%.1f" | format(c.tm_probe) if c.tm_probe is not none else "—" }}°C</td>
+        {% endif %}
+        <td>{{ "%.1f" | format(c.tm_rev) if c.tm_rev is not none else "—" }}°C</td>
         <td>{{ "%.1f" | format(c.gc_fwd) }}%</td>
         <td>{{ "%.1f" | format(c.gc_rev) }}%</td>
         <td>{{ c.product_size }} bp</td>
+        {% if top_candidates[0].probe %}
+        <td>{{ "%.0f" | format(c.probe_center_score) if c.probe_center_score is not none else "—" }}</td>
+        {% endif %}
         <td>
           <div class="score-bar">
             <div class="bar" style="width:{{ [[c.coverage_score, 100] | min * 0.6, 0.1] | max | float | round(1) }}px"></div>
@@ -222,26 +234,33 @@ class ReportService:
         ranked_primers: list[dict],
         top10: list[dict],
     ) -> dict:
+        def _safe_round(v, n):
+            return round(v, n) if v is not None else None
+
         return {
             "assay_id":           str(assay_id),
             "generated_at":       iso_str,
             "total_candidates":   len(ranked_primers),
             "top_candidates": [
                 {
-                    "rank":           c.get("final_rank"),
-                    "forward":        c.get("forward", ""),
-                    "reverse":        c.get("reverse", ""),
-                    "final_score":    round(c.get("final_score", 0.0), 4),
-                    "coverage_score": round(c.get("coverage_score", 0.0), 2),
-                    "thermo_score":   round(c.get("thermo_score", 0.0), 2),
-                    "ai_score":       round(c.get("ai_score", 0.0), 2),
-                    "tm_fwd":         round(c.get("tm_fwd", 0.0), 2),
-                    "tm_rev":         round(c.get("tm_rev", 0.0), 2),
-                    "gc_fwd":         round(c.get("gc_fwd", 0.0), 2),
-                    "gc_rev":         round(c.get("gc_rev", 0.0), 2),
-                    "product_size":   c.get("product_size", 0),
-                    "specificity":    round(c.get("specificity_score", 0.0), 4),
-                    "penalty_reason": c.get("penalty_reason", ""),
+                    "rank":               c.get("final_rank"),
+                    "forward":            c.get("forward", ""),
+                    "reverse":            c.get("reverse", ""),
+                    "probe":              c.get("probe"),
+                    "final_score":        _safe_round(c.get("final_score"), 4),
+                    "coverage_score":     _safe_round(c.get("coverage_score"), 2),
+                    "thermo_score":       _safe_round(c.get("thermo_score"), 2),
+                    "ai_score":           _safe_round(c.get("ai_score"), 2),
+                    "tm_fwd":             _safe_round(c.get("tm_fwd"), 2),
+                    "tm_rev":             _safe_round(c.get("tm_rev"), 2),
+                    "tm_probe":           _safe_round(c.get("tm_probe"), 2),
+                    "gc_fwd":             _safe_round(c.get("gc_fwd"), 2),
+                    "gc_rev":             _safe_round(c.get("gc_rev"), 2),
+                    "gc_probe":           _safe_round(c.get("gc_probe"), 2),
+                    "probe_center_score": _safe_round(c.get("probe_center_score"), 1),
+                    "product_size":       c.get("product_size", 0),
+                    "specificity":        _safe_round(c.get("specificity_score"), 4),
+                    "penalty_reason":     c.get("penalty_reason", ""),
                 }
                 for c in top10
             ],
