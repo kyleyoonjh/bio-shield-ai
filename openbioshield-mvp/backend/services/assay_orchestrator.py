@@ -17,7 +17,6 @@ no direct PostgreSQL connections (company firewall blocks 5432/6543).
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 from datetime import datetime
@@ -67,7 +66,6 @@ class AssayOrchestrator:
             logger.info("[pipeline] assay=%s step=%d/%d — %s", assay_id, step, total_steps, msg)
             if progress_cb:
                 await progress_cb(step, total_steps, msg)
-            await asyncio.sleep(1.0)  # 1 s pause so UI can show each stage clearly
 
         try:
             await self._update_status(assay_id, "RUNNING")
@@ -128,9 +126,14 @@ class AssayOrchestrator:
 
             # Step 9 — Report
             await _progress(9, "Generating HTML + PDF report")
-            report_path = self.report.generate_summary(assay_id, ranked)
+            report_html = self.report.generate_summary(assay_id, ranked)
+            report_path = f"/api/v3/assay/report/{assay_id}"
 
-            await self._update_status(assay_id, "COMPLETED", report_path=report_path)
+            await self._update_status(
+                assay_id, "COMPLETED",
+                report_path=report_path,
+                report_html=report_html,
+            )
 
             # Persist top primers to Supabase
             await self._save_primers(assay_id, ranked[:10])
@@ -157,6 +160,7 @@ class AssayOrchestrator:
         assay_id,
         status: str,
         report_path: str | None = None,
+        report_html: str | None = None,
         error: str | None = None,
     ) -> None:
         try:
@@ -165,6 +169,8 @@ class AssayOrchestrator:
             payload: dict[str, Any] = {"status": status, "updated_at": datetime.utcnow().isoformat()}
             if report_path:
                 payload["report_path"] = report_path
+            if report_html:
+                payload["report_html"] = report_html
             if error:
                 payload["error_message"] = error[:500]
             client.table("assay_jobs").update(payload).eq("id", str(assay_id)).execute()

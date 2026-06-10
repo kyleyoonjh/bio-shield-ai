@@ -17,7 +17,6 @@ load_dotenv()
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from services.ai_service import generate_report, map_schema, map_schema_ep09
@@ -55,9 +54,6 @@ app.add_middleware(
 app.include_router(v2_router)
 app.include_router(assay_router)
 
-_REPORTS_DIR = os.path.join(os.path.dirname(__file__), "reports")
-os.makedirs(_REPORTS_DIR, exist_ok=True)
-app.mount("/reports", StaticFiles(directory=_REPORTS_DIR), name="reports")
 
 
 @app.on_event("startup")

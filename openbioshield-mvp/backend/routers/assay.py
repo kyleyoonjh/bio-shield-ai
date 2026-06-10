@@ -1,9 +1,8 @@
 """
 Assay Design API router — /api/v3/assay/*
 
-All Supabase operations use REST API (HTTPS, verify=False).
-No direct PostgreSQL connections — company firewall blocks 5432/6543.
-Falls back to in-memory cache when Supabase tables are unavailable.
+All state persisted to Supabase (REST API, verify=False for company firewall).
+No in-memory cache — supports stateless Vercel serverless deployment.
 """
 
 from __future__ import annotations
@@ -11,19 +10,14 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
-import uuid
-from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 logger = logging.getLogger("openbioshield.assay")
 router = APIRouter(prefix="/api/v3/assay", tags=["Assay Design"])
-
-# In-memory cache — survives across requests within the same process lifetime.
-# Keyed by job_id. Stores full AssayStatusResponse-compatible dicts.
-_JOB_CACHE: dict[str, dict] = {}
 
 
 # ─── Request / Response Models ────────────────────────────────────────────────
@@ -63,19 +57,17 @@ async def start_assay_design(
         content = await fasta_file.read()
         with os.fdopen(tmp_fd, "wb") as f:
             f.write(content)
-        logger.info("[design] STEP 1/3 FASTA 저장 완료 | path=%s size=%d bytes", tmp_path, len(content))
+        logger.info("[design] FASTA 저장 완료 | path=%s size=%d bytes", tmp_path, len(content))
     except Exception as exc:
         os.close(tmp_fd)
-        logger.error("[design] STEP 1/3 FAILED FASTA 저장 실패: %s", exc)
+        logger.error("[design] FASTA 저장 실패: %s", exc)
         raise HTTPException(status_code=400, detail=f"FASTA upload failed: {exc}") from exc
 
-    # Create job record (Supabase + in-memory cache)
-    logger.info("[design] STEP 2/3 — job 생성")
+    # Create job record in Supabase
     job_id = await _create_job(project_name, target_name, assay_type)
-    logger.info("[design] STEP 2/3 완료 | job_id=%s", job_id)
+    logger.info("[design] job 생성 완료 | job_id=%s", job_id)
 
     # Queue background pipeline
-    logger.info("[design] STEP 3/3 — 파이프라인 큐 등록 | job_id=%s", job_id)
     background_tasks.add_task(
         _run_pipeline_task,
         job_id=job_id,
@@ -83,23 +75,14 @@ async def start_assay_design(
         assay_type=assay_type,
         advanced_options=None,
     )
-    logger.info("[design] STEP 3/3 완료 → 202 반환 | job_id=%s", job_id)
+    logger.info("[design] 파이프라인 큐 등록 → 202 반환 | job_id=%s", job_id)
 
     return {"job_id": job_id, "status": "RUNNING", "message": "Assay design pipeline started."}
 
 
 @router.get("/status/{job_id}", response_model=AssayStatusResponse)
 async def get_assay_status(job_id: str):
-    """Poll pipeline status and results. Checks in-memory cache first, then Supabase."""
-
-    # ── 1. In-memory cache (always available) ─────────────────────────────────
-    cached = _JOB_CACHE.get(job_id)
-    if cached:
-        logger.info("[assay/status] cache hit | job=%s status=%s", job_id, cached["status"])
-        return AssayStatusResponse(**cached)
-
-    # ── 2. Supabase fallback ───────────────────────────────────────────────────
-    logger.info("[assay/status] cache miss — querying Supabase | job=%s", job_id)
+    """Poll pipeline status and results. Reads directly from Supabase."""
     try:
         from services.supabase_service import _get_client
         client = _get_client()
@@ -124,6 +107,7 @@ async def get_assay_status(job_id: str):
         return AssayStatusResponse(
             job_id=job_id,
             status=job["status"],
+            current_step=job.get("current_step") or 1,
             report_path=job.get("report_path"),
             error_message=job.get("error_message"),
             primers=primers,
@@ -132,28 +116,27 @@ async def get_assay_status(job_id: str):
         raise
     except Exception as exc:
         logger.error("[assay/status] Supabase 조회 실패 | job=%s error=%s", job_id, exc)
-        # Job was created (we queued it) but Supabase has no table yet → still RUNNING
-        if job_id in _JOB_CACHE:
-            return AssayStatusResponse(**_JOB_CACHE[job_id])
         raise HTTPException(status_code=503, detail=f"Database unavailable: {exc}") from exc
+
+
+@router.get("/report/{job_id}")
+async def get_report(job_id: str):
+    """Serve the HTML report for a completed assay job."""
+    try:
+        from services.supabase_service import _get_client
+        client = _get_client()
+        res = client.table("assay_jobs").select("report_html").eq("id", job_id).single().execute()
+        html = res.data.get("report_html") if res.data else None
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Database unavailable: {exc}") from exc
+    if not html:
+        raise HTTPException(status_code=404, detail="Report not found or not yet generated")
+    return HTMLResponse(content=html)
 
 
 @router.get("/jobs")
 async def list_jobs(limit: int = 20) -> list[dict]:
-    """Return recent assay jobs. Merges Supabase results with in-memory cache."""
-    # Collect from cache
-    cache_jobs = [
-        {
-            "id":           v["job_id"],
-            "project_name": v.get("project_name", ""),
-            "target_name":  v.get("target_name", ""),
-            "assay_type":   v.get("assay_type", ""),
-            "status":       v["status"],
-            "created_at":   v.get("created_at", ""),
-        }
-        for v in sorted(_JOB_CACHE.values(), key=lambda x: x.get("created_at", ""), reverse=True)
-    ]
-
+    """Return recent assay jobs from Supabase."""
     try:
         from services.supabase_service import _get_client
         client = _get_client()
@@ -164,23 +147,16 @@ async def list_jobs(limit: int = 20) -> list[dict]:
             .limit(limit)
             .execute()
         )
-        db_jobs = res.data or []
-        # Merge: DB takes precedence, cache fills in anything not in DB
-        db_ids = {j["id"] for j in db_jobs}
-        extra  = [j for j in cache_jobs if j["id"] not in db_ids]
-        return (db_jobs + extra)[:limit]
+        return res.data or []
     except Exception as exc:
-        logger.warning("[assay/jobs] Supabase unavailable — returning cache only: %s", exc)
-        return cache_jobs[:limit]
+        logger.warning("[assay/jobs] Supabase unavailable: %s", exc)
+        raise HTTPException(status_code=503, detail=f"Database unavailable: {exc}") from exc
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async def _create_job(project_name: str, target_name: str, assay_type: str) -> str:
-    """Insert a new assay_jobs row, fall back to ephemeral UUID on failure."""
-    now = datetime.now(timezone.utc).isoformat()
-    job_id: str | None = None
-
+    """Insert a new assay_jobs row in Supabase. Raises HTTPException on failure."""
     try:
         from services.supabase_service import _get_client
         client = _get_client()
@@ -189,27 +165,14 @@ async def _create_job(project_name: str, target_name: str, assay_type: str) -> s
             "target_name":  target_name,
             "assay_type":   assay_type,
             "status":       "RUNNING",
+            "current_step": 1,
         }).execute()
         job_id = res.data[0]["id"]
         logger.info("[assay] Supabase job 생성 완료 | job_id=%s", job_id)
+        return job_id
     except Exception as exc:
-        job_id = str(uuid.uuid4())
-        logger.warning("[assay] Supabase INSERT 실패 — ephemeral ID 사용 | job_id=%s error=%s", job_id, exc)
-
-    # Always cache regardless of Supabase success
-    _JOB_CACHE[job_id] = {
-        "job_id":        job_id,
-        "status":        "RUNNING",
-        "current_step":  1,
-        "project_name":  project_name,
-        "target_name":   target_name,
-        "assay_type":    assay_type,
-        "created_at":    now,
-        "report_path":   None,
-        "error_message": None,
-        "primers":       None,
-    }
-    return job_id
+        logger.error("[assay] Supabase job 생성 실패: %s", exc)
+        raise HTTPException(status_code=503, detail=f"Database unavailable: {exc}") from exc
 
 
 async def _run_pipeline_task(
@@ -218,73 +181,33 @@ async def _run_pipeline_task(
     assay_type:       str,
     advanced_options: dict | None,
 ) -> None:
-    """Background task: run full orchestrator pipeline and update cache."""
+    """Background task: run full orchestrator pipeline."""
     from services.assay_orchestrator import AssayOrchestrator
     import time
 
-    logger.info("[pipeline] ▶ 시작 | job=%s assay_type=%s fasta=%s", job_id, assay_type, fasta_path)
+    logger.info("[pipeline] ▶ 시작 | job=%s assay_type=%s", job_id, assay_type)
     t0 = time.perf_counter()
 
     async def _step_progress(step: int, total: int, msg: str) -> None:
-        if job_id in _JOB_CACHE:
-            _JOB_CACHE[job_id]["current_step"] = step
+        try:
+            from services.supabase_service import _get_client
+            _get_client().table("assay_jobs").update({"current_step": step}).eq("id", job_id).execute()
+        except Exception as exc:
+            logger.warning("[pipeline] step progress update failed: %s", exc)
 
     try:
         orchestrator = AssayOrchestrator()
-        result = await orchestrator.run_pipeline(
+        await orchestrator.run_pipeline(
             assay_id=job_id,
             fasta_path=fasta_path,
             assay_type=assay_type,
             advanced_options=advanced_options,
             progress_cb=_step_progress,
         )
-        elapsed = time.perf_counter() - t0
-        primers = result.get("ranked_primers", [])
-        report  = result.get("report_path")
-
-        logger.info(
-            "[pipeline] ✅ 완료 | job=%s elapsed=%.1fs primers=%d report=%s",
-            job_id, elapsed, len(primers), report,
-        )
-
-        # Map internal field names → frontend/Supabase field names
-        mapped_primers = [
-            {
-                "id":                str(i + 1),
-                "assay_id":          job_id,
-                "forward_primer":    p.get("forward", ""),
-                "reverse_primer":    p.get("reverse", ""),
-                "tm":                round((p.get("tm_fwd", 0) + p.get("tm_rev", 0)) / 2, 2),
-                "gc":                round((p.get("gc_fwd", 0) + p.get("gc_rev", 0)) / 2, 2),
-                "coverage_score":    p.get("coverage_score", 0),
-                "specificity_score": p.get("specificity_score", 0),
-                "thermo_score":      p.get("thermo_score", 0),
-                "ai_score":          p.get("ai_score", 0),
-                "final_score":       p.get("final_score", 0),
-                "final_rank":        p.get("final_rank", i + 1),
-                "product_size":      p.get("product_size", 0),
-            }
-            for i, p in enumerate(primers)
-        ]
-
-        # Update in-memory cache
-        if job_id in _JOB_CACHE:
-            _JOB_CACHE[job_id].update({
-                "status":      "COMPLETED",
-                "report_path": report,
-                "primers":     mapped_primers,
-            })
+        logger.info("[pipeline] ✅ 완료 | job=%s elapsed=%.1fs", job_id, time.perf_counter() - t0)
 
     except Exception as exc:
-        elapsed = time.perf_counter() - t0
-        logger.exception("[pipeline] ❌ 실패 | job=%s elapsed=%.1fs error=%s", job_id, elapsed, exc)
-
-        # Update in-memory cache
-        if job_id in _JOB_CACHE:
-            _JOB_CACHE[job_id].update({
-                "status":        "FAILED",
-                "error_message": str(exc),
-            })
+        logger.exception("[pipeline] ❌ 실패 | job=%s elapsed=%.1fs error=%s", job_id, time.perf_counter() - t0, exc)
 
     finally:
         try:

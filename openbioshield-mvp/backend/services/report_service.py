@@ -17,7 +17,12 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Use backend/reports/ locally; fall back to /tmp on read-only filesystems (Vercel)
 _REPORT_DIR = os.path.join(os.path.dirname(__file__), "..", "reports")
+try:
+    os.makedirs(_REPORT_DIR, exist_ok=True)
+except (PermissionError, OSError):
+    _REPORT_DIR = "/tmp"
 
 # ── HTML template (inline Jinja2) ────────────────────────────────────────────
 
@@ -167,7 +172,7 @@ class ReportService:
     ) -> str:
         """
         Generate JSON + HTML + PDF reports.
-        Returns the path to the HTML report (primary artifact).
+        Returns the HTML content string (stored in Supabase, served via /api/v3/assay/report/{id}).
         """
         top10 = ranked_primers[:10]
         now_str = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -181,11 +186,15 @@ class ReportService:
         pdf_path  = os.path.join(self.report_dir, f"{base}.pdf")
 
         # ── JSON ──────────────────────────────────────────────────────────────
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(summary, f, ensure_ascii=False, indent=2)
-        logger.info("[report] JSON → %s", json_path)
+        try:
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(summary, f, ensure_ascii=False, indent=2)
+            logger.info("[report] JSON → %s", json_path)
+        except Exception as exc:
+            logger.warning("[report] JSON write failed: %s", exc)
 
         # ── HTML ──────────────────────────────────────────────────────────────
+        html_content = ""
         try:
             html_content = self._render_html(summary)
             with open(html_path, "w", encoding="utf-8") as f:
@@ -193,7 +202,6 @@ class ReportService:
             logger.info("[report] HTML → %s", html_path)
         except Exception as exc:
             logger.warning("[report] HTML generation failed: %s", exc)
-            html_path = json_path  # fallback
 
         # ── PDF ───────────────────────────────────────────────────────────────
         try:
@@ -202,8 +210,8 @@ class ReportService:
         except Exception as exc:
             logger.warning("[report] PDF generation failed: %s", exc)
 
-        # Return URL path (served via FastAPI StaticFiles at /reports/)
-        return f"/reports/{os.path.basename(html_path)}"
+        # Return HTML content — caller (orchestrator) saves it to Supabase
+        return html_content
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 

@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+pandas
+openpyxl
+scipy
+statsmodels
+python-multipart
+openai
+python-dotenv
+httpx
+primer3-py
+supabase>=2.4.0
+pyyaml
+jinja2
+reportlab
