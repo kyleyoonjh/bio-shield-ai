@@ -64,10 +64,11 @@ except Exception:
 
 
 def _run_primer3_subprocess_batch(tasks: list[dict]) -> list[dict]:
-    """Run all primer3 calls in a single isolated subprocess.
+    """Run all primer3 calls in an isolated subprocess (Windows only).
 
-    If the subprocess crashes (Windows segfault), return empty dicts for all
-    tasks — the pipeline gracefully raises 'no candidates' instead of dying.
+    On Windows, primer3's C extension can segfault and kill the uvicorn process.
+    Subprocess isolation means a crash only kills the child, not the server.
+    On Linux/Mac this function is not called — primer3 runs directly in a thread.
     """
     if not tasks:
         return []
@@ -81,16 +82,36 @@ def _run_primer3_subprocess_batch(tasks: list[dict]) -> list[dict]:
             timeout=90,
         )
         if proc.returncode == 0 and proc.stdout:
-            return json.loads(proc.stdout.decode())
-        if proc.returncode != 0:
-            logger.warning(
-                "[candidate] primer3 subprocess exited with rc=%d stderr=%s",
-                proc.returncode,
-                proc.stderr.decode(errors="replace")[:300],
-            )
+            results = json.loads(proc.stdout.decode())
+            logger.info("[candidate] subprocess OK | tasks=%d results=%d", len(tasks), len(results))
+            return results
+        logger.warning(
+            "[candidate] primer3 subprocess rc=%d stderr=%s",
+            proc.returncode,
+            proc.stderr.decode(errors="replace")[:400],
+        )
     except Exception as exc:
         logger.warning("[candidate] primer3 subprocess error: %s", exc)
     return [{} for _ in tasks]
+
+
+def _run_primer3_direct_batch(tasks: list[dict]) -> list[dict]:
+    """Call primer3 directly in the current process (Linux/Mac).
+
+    Safe on Linux — segfaults don't occur with the Linux primer3 build.
+    """
+    if not tasks:
+        return []
+    results = []
+    for t in tasks:
+        try:
+            r = _primer3.design_primers(seq_args=t["seq_args"], global_args=t["global_args"])
+        except Exception as exc:
+            logger.warning("[candidate] primer3 direct error: %s", exc)
+            r = {}
+        results.append(r)
+    logger.info("[candidate] direct primer3 OK | tasks=%d", len(tasks))
+    return results
 
 
 def _load_config() -> dict:
@@ -217,15 +238,25 @@ class CandidateAnalysisService:
             })
             task_regions.append(region)
 
-        # Run primer3 in an isolated subprocess so a C-level crash can't kill uvicorn
-        batch_results = _run_primer3_subprocess_batch(tasks_input)
+        # On Windows: subprocess isolation (segfault in primer3 C ext kills the whole process)
+        # On Linux/Mac: direct call in thread (safe, no segfault risk with Linux build)
+        import platform
+        is_windows = platform.system() == "Windows"
+        logger.info(
+            "[candidate] primer3 mode=%s tasks=%d probe_mode=%s",
+            "subprocess" if is_windows else "direct", len(tasks_input), probe_mode,
+        )
+        if is_windows:
+            batch_results = _run_primer3_subprocess_batch(tasks_input)
+        else:
+            batch_results = _run_primer3_direct_batch(tasks_input)
 
         for region, result in zip(task_regions, batch_results):
             cands = self._parse_primer3_result(result, region, probe_mode=probe_mode)
             all_candidates.extend(cands)
 
         logger.info(
-            "[candidate] %d primer pairs generated from %d regions (probe_mode=%s)",
+            "[candidate] %d primer pairs from %d regions (probe_mode=%s)",
             len(all_candidates), len(conserved_regions), probe_mode,
         )
         return all_candidates
