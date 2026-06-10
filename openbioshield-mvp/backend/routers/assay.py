@@ -88,19 +88,22 @@ async def start_assay_design(
 @router.get("/status/{job_id}", response_model=AssayStatusResponse)
 async def get_assay_status(job_id: str):
     """Poll pipeline status and results. Reads directly from Supabase."""
+    import asyncio
     try:
         from services.supabase_service import _get_client
         client = _get_client()
 
-        job_res = client.table("assay_jobs").select("*").eq("id", job_id).single().execute()
+        job_res = await asyncio.to_thread(
+            lambda: client.table("assay_jobs").select("*").eq("id", job_id).single().execute()
+        )
         job = job_res.data
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
 
         primers = None
         if job.get("status") == "COMPLETED":
-            p_res = (
-                client.table("assay_primers")
+            p_res = await asyncio.to_thread(
+                lambda: client.table("assay_primers")
                 .select("*")
                 .eq("assay_id", job_id)
                 .order("final_rank")
@@ -127,10 +130,13 @@ async def get_assay_status(job_id: str):
 @router.get("/report/{job_id}")
 async def get_report(job_id: str):
     """Serve the HTML report for a completed assay job."""
+    import asyncio
     try:
         from services.supabase_service import _get_client
         client = _get_client()
-        res = client.table("assay_jobs").select("report_html").eq("id", job_id).single().execute()
+        res = await asyncio.to_thread(
+            lambda: client.table("assay_jobs").select("report_html").eq("id", job_id).single().execute()
+        )
         html = res.data.get("report_html") if res.data else None
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Database unavailable: {exc}") from exc
@@ -142,11 +148,12 @@ async def get_report(job_id: str):
 @router.get("/jobs")
 async def list_jobs(limit: int = MAX_JOBS) -> list[dict]:
     """Return recent assay jobs from Supabase."""
+    import asyncio
     try:
         from services.supabase_service import _get_client
         client = _get_client()
-        res = (
-            client.table("assay_jobs")
+        res = await asyncio.to_thread(
+            lambda: client.table("assay_jobs")
             .select("id,project_name,target_name,assay_type,status,created_at")
             .order("created_at", desc=True)
             .limit(limit)
@@ -162,19 +169,23 @@ async def list_jobs(limit: int = MAX_JOBS) -> list[dict]:
 
 async def _create_job(project_name: str, target_name: str, assay_type: str) -> str:
     """Insert a new assay_jobs row in Supabase. Raises HTTPException on failure."""
+    import asyncio
     try:
         from services.supabase_service import _get_client
         client = _get_client()
-        res = client.table("assay_jobs").insert({
+        payload = {
             "project_name": project_name,
             "target_name":  target_name,
             "assay_type":   assay_type,
             "status":       "RUNNING",
             "current_step": 1,
-        }).execute()
+        }
+        res = await asyncio.to_thread(
+            lambda: client.table("assay_jobs").insert(payload).execute()
+        )
         job_id = res.data[0]["id"]
         logger.info("[assay] Supabase job 생성 완료 | job_id=%s", job_id)
-        _purge_excess_jobs(client)
+        await asyncio.to_thread(lambda: _purge_excess_jobs(client))
         return job_id
     except Exception as exc:
         logger.error("[assay] Supabase job 생성 실패: %s", exc)
@@ -231,9 +242,13 @@ async def _run_pipeline_task(
     t0 = time.perf_counter()
 
     async def _step_progress(step: int, total: int, msg: str) -> None:
+        import asyncio as _aio
         try:
             from services.supabase_service import _get_client
-            _get_client().table("assay_jobs").update({"current_step": step}).eq("id", job_id).execute()
+            client = _get_client()
+            await _aio.to_thread(
+                lambda: client.table("assay_jobs").update({"current_step": step}).eq("id", job_id).execute()
+            )
         except Exception as exc:
             logger.warning("[pipeline] step progress update failed: %s", exc)
 

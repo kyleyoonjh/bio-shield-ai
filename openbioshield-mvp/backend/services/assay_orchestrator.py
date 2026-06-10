@@ -212,7 +212,10 @@ class AssayOrchestrator:
                 payload["report_html"] = report_html
             if error:
                 payload["error_message"] = error[:500]
-            client.table("assay_jobs").update(payload).eq("id", str(assay_id)).execute()
+            _id = str(assay_id)
+            await asyncio.to_thread(
+                lambda: client.table("assay_jobs").update(payload).eq("id", _id).execute()
+            )
         except Exception as exc:
             logger.warning("[pipeline] Supabase status update failed: %s", exc)
 
@@ -249,7 +252,9 @@ class AssayOrchestrator:
                 return
             logger.info("[pipeline] _save_primers: inserting %d rows", len(rows))
             try:
-                res = client.table("assay_primers").insert(rows).execute()
+                res = await asyncio.to_thread(
+                    lambda: client.table("assay_primers").insert(rows).execute()
+                )
                 logger.info("[pipeline] _save_primers INSERT OK: %d rows saved", len(res.data or []))
             except Exception as probe_exc:
                 logger.warning(
@@ -260,7 +265,9 @@ class AssayOrchestrator:
                     for row in rows
                 ]
                 try:
-                    res2 = client.table("assay_primers").insert(base_rows).execute()
+                    res2 = await asyncio.to_thread(
+                        lambda: client.table("assay_primers").insert(base_rows).execute()
+                    )
                     logger.info("[pipeline] _save_primers base INSERT OK: %d rows saved", len(res2.data or []))
                 except Exception as base_exc:
                     logger.error("[pipeline] _save_primers base INSERT also failed: %s", base_exc)

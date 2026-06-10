@@ -50,7 +50,7 @@ try:
                     "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env"
                 )
             try:
-                options = ClientOptions(httpx_client_options={"verify": _ssl_verify})
+                options = ClientOptions(httpx_client_options={"verify": _ssl_verify, "timeout": 20.0})
                 _client = create_client(url, key, options=options)
             except TypeError:
                 # Older supabase-py — module-level SSL patch handles verification
