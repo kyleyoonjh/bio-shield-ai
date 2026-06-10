@@ -1,0 +1,32 @@
+{
+  "assay_id": "test-job-id",
+  "generated_at": "2026-06-10T07:35:38.350989Z",
+  "total_candidates": 1,
+  "top_candidates": [
+    {
+      "rank": 1,
+      "forward": "ACTCGTCTATCTTCTGCAGGCT",
+      "reverse": "TCCAAAGCCACGTACGAGCA",
+      "probe": "CGTCCGTGTTGCAGCCGATCATCAGCA",
+      "final_score": 85.834,
+      "coverage_score": 100.0,
+      "thermo_score": 62.6,
+      "ai_score": 66.57,
+      "tm_fwd": 63.75,
+      "tm_rev": 64.54,
+      "tm_probe": 73.52,
+      "gc_fwd": 50.0,
+      "gc_rev": 60.0,
+      "gc_probe": null,
+      "probe_center_score": 73.5,
+      "product_size": 118,
+      "specificity": 75.0,
+      "penalty_reason": ""
+    }
+  ],
+  "score_weights": {
+    "coverage": 0.6,
+    "thermo": 0.2,
+    "ai": 0.2
+  }
+}
