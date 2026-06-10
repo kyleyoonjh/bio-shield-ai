@@ -39,6 +39,59 @@ _IUPAC: dict[str, list[str]] = {
 # ── config path ───────────────────────────────────────────────────────────────
 _CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "ranking.yaml")
 
+# ── Subprocess script: runs primer3 in an isolated process so a C-level
+#    crash (segfault on Windows) cannot kill the uvicorn server ──────────────
+_PRIMER3_SUBPROCESS_SCRIPT = """\
+import sys, json
+try:
+    import primer3
+    tasks = json.loads(sys.stdin.buffer.read())
+    results = []
+    for t in tasks:
+        try:
+            r = primer3.design_primers(seq_args=t['seq_args'], global_args=t['global_args'])
+        except Exception:
+            r = {}
+        results.append(r)
+    sys.stdout.write(json.dumps(results))
+except Exception:
+    import json as _j
+    n = 0
+    try: n = len(json.loads(sys.stdin.buffer.read()))
+    except Exception: pass
+    sys.stdout.write(_j.dumps([{} for _ in range(n)]))
+"""
+
+
+def _run_primer3_subprocess_batch(tasks: list[dict]) -> list[dict]:
+    """Run all primer3 calls in a single isolated subprocess.
+
+    If the subprocess crashes (Windows segfault), return empty dicts for all
+    tasks — the pipeline gracefully raises 'no candidates' instead of dying.
+    """
+    if not tasks:
+        return []
+    import subprocess, json, sys as _sys
+    try:
+        inp = json.dumps(tasks).encode()
+        proc = subprocess.run(
+            [_sys.executable, "-c", _PRIMER3_SUBPROCESS_SCRIPT],
+            input=inp,
+            capture_output=True,
+            timeout=90,
+        )
+        if proc.returncode == 0 and proc.stdout:
+            return json.loads(proc.stdout.decode())
+        if proc.returncode != 0:
+            logger.warning(
+                "[candidate] primer3 subprocess exited with rc=%d stderr=%s",
+                proc.returncode,
+                proc.stderr.decode(errors="replace")[:300],
+            )
+    except Exception as exc:
+        logger.warning("[candidate] primer3 subprocess error: %s", exc)
+    return [{} for _ in tasks]
+
 
 def _load_config() -> dict:
     try:
@@ -94,7 +147,7 @@ class CandidateAnalysisService:
       - ``calculate_thermo_with_iupac()`` for IUPAC worst-case thermodynamics
     """
 
-    def __init__(self, num_return: int = 10):
+    def __init__(self, num_return: int = 15):
         self.num_return = num_return
         cfg = _load_config()
         self._target_coords: dict[str, dict] = cfg.get("target_coordinates", {})
@@ -138,7 +191,7 @@ class CandidateAnalysisService:
         """
         all_candidates: list[dict] = []
 
-        probe_mode = assay_type.upper() in ("QPCR", "Q-PCR", "RTPCR", "RT-PCR")
+        probe_mode = any(k in assay_type.upper() for k in ("QPCR", "Q-PCR", "RTPCR", "RT-PCR"))
         p3_global = {**self._p3_global, "PRIMER_NUM_RETURN": self.num_return}
         if probe_mode:
             p3_global.update(_PROBE_P3)
@@ -151,11 +204,24 @@ class CandidateAnalysisService:
             logger.warning("[candidate] primer3 unavailable — using rule-based fallback")
             return self._fallback_design(conserved_regions)
 
+        # Build tasks for each region
+        tasks_input = []
+        task_regions = []
         for region in conserved_regions:
             seq = region.get("consensus_seq", "")
             if len(seq) < 40:
                 continue
-            cands = self._run_primer3(seq, region, p3_global, probe_mode=probe_mode)
+            tasks_input.append({
+                "seq_args":    {"SEQUENCE_ID": f"region_{region.get('start', 0)}", "SEQUENCE_TEMPLATE": seq},
+                "global_args": p3_global,
+            })
+            task_regions.append(region)
+
+        # Run primer3 in an isolated subprocess so a C-level crash can't kill uvicorn
+        batch_results = _run_primer3_subprocess_batch(tasks_input)
+
+        for region, result in zip(task_regions, batch_results):
+            cands = self._parse_primer3_result(result, region, probe_mode=probe_mode)
             all_candidates.extend(cands)
 
         logger.info(
@@ -276,7 +342,7 @@ class CandidateAnalysisService:
         genomic_offset: int = 0,
         probe_mode: bool = False,
     ) -> list[dict]:
-        """Call primer3.design_primers and return normalised candidate dicts."""
+        """Call primer3.design_primers directly (used by gene-specific design)."""
         try:
             result = _primer3.design_primers(
                 seq_args={
@@ -288,7 +354,16 @@ class CandidateAnalysisService:
         except Exception as exc:
             logger.warning("[candidate] Primer3 error at region %s: %s", region.get("start"), exc)
             return []
+        return self._parse_primer3_result(result, region, probe_mode=probe_mode, genomic_offset=genomic_offset)
 
+    def _parse_primer3_result(
+        self,
+        result: dict,
+        region: dict,
+        probe_mode: bool = False,
+        genomic_offset: int = 0,
+    ) -> list[dict]:
+        """Convert a primer3.design_primers() result dict into candidate dicts."""
         n = result.get("PRIMER_PAIR_NUM_RETURNED", 0)
         if n == 0:
             logger.debug(
@@ -304,7 +379,6 @@ class CandidateAnalysisService:
             if not fwd or not rev:
                 continue
 
-            # Absolute genomic position of the forward primer
             left_pos_tuple = result.get(f"PRIMER_LEFT_{i}", (0, 0))
             genomic_pos    = genomic_offset + left_pos_tuple[0]
 
@@ -327,8 +401,6 @@ class CandidateAnalysisService:
                 probe_seq = result.get(f"PRIMER_INTERNAL_{i}_SEQUENCE", "")
                 if probe_seq:
                     probe_upper = probe_seq.upper()
-                    # Rule 1: 5' G → fluorescence self-quenching
-                    # Rule 2: homopolymer run (≥4) inhibits hybridisation / signal
                     probe_ok = (
                         probe_upper[0] != "G"
                         and "GGGGG" not in probe_upper
@@ -337,27 +409,21 @@ class CandidateAnalysisService:
                     if not probe_ok:
                         logger.debug("[candidate] probe failed quality filter (pair %d): %s", i, probe_seq[:12])
                     else:
-                        # Rule 3: probe centrality score (ideal = centre of amplicon)
                         internal_pos = result.get(f"PRIMER_INTERNAL_{i}", (0, 0))
                         left_pos     = result.get(f"PRIMER_LEFT_{i}",     (0, 0))
                         right_pos    = result.get(f"PRIMER_RIGHT_{i}",    (0, 0))
                         amp_start    = left_pos[0]
-                        # right_pos[0] = 3'-end of right primer (0-based inclusive);
-                        # +1 makes it an exclusive end consistent with product_size calculation.
                         amp_end      = right_pos[0] + 1
                         amp_len      = max(amp_end - amp_start, 1)
-                        # internal_pos[0] = 5'-start of probe, internal_pos[1] = length
                         probe_center = (internal_pos[0] + internal_pos[1] / 2) - amp_start
                         amp_center   = amp_len / 2
                         offset_pct   = abs(probe_center - amp_center) / amp_len
-                        # 100 at centre, 0 at > 40% offset from centre
                         probe_center_score = max(0.0, round(100.0 - offset_pct * 250.0, 1))
 
                         cand["probe"]              = probe_seq
                         cand["tm_probe"]           = round(result.get(f"PRIMER_INTERNAL_{i}_TM",        0.0), 2)
                         cand["gc_probe"]           = round(result.get(f"PRIMER_INTERNAL_{i}_GC_PERCENT", 0.0), 2)
                         cand["probe_center_score"] = probe_center_score
-                # Pair is always included even if no valid probe found
 
             candidates.append(cand)
         return candidates
