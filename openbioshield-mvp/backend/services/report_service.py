@@ -165,6 +165,78 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
   </table>
 </div>
 
+<div class="section">
+  <h2>Candidate Details — AI Score Breakdown</h2>
+  <p style="font-size:11px;color:#64748b;margin-bottom:14px">
+    AI Score는 서열 특성 기반 규칙(heuristic) 모델로 산출됩니다. 각 항목을 클릭해서 feature vector 및 점수 기여도를 확인하세요.
+  </p>
+  {% for c in top_candidates %}
+  <details style="margin-bottom:8px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+    <summary style="padding:10px 16px;background:#f8fafc;cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
+      <span style="font-weight:700;color:#0f172a;min-width:22px">#{{ c.rank }}</span>
+      <span class="seq" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.forward }}</span>
+      <span style="white-space:nowrap;font-size:12px;color:#475569">
+        AI: <strong style="color:#0f172a">{{ "%.1f" | format(c.ai_score) }}</strong>
+        &nbsp;|&nbsp; Final: <strong style="color:#0f172a">{{ "%.1f" | format(c.final_score) }}</strong>
+      </span>
+    </summary>
+    <div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      {% if c.ai_feature_vector %}
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:8px">Feature Vector</div>
+        <table>
+          <tr><th>Feature</th><th>Forward</th><th>Reverse</th></tr>
+          <tr><td>GC Content</td>
+            <td>{{ "%.1f" | format(c.ai_feature_vector.gc_fwd) }}%</td>
+            <td>{{ "%.1f" | format(c.ai_feature_vector.gc_rev) }}%</td></tr>
+          <tr><td>Tm (°C)</td>
+            <td>{{ "%.2f" | format(c.ai_feature_vector.tm_fwd) }}</td>
+            <td>{{ "%.2f" | format(c.ai_feature_vector.tm_rev) }}</td></tr>
+          <tr><td>Length (nt)</td>
+            <td>{{ c.ai_feature_vector.len_fwd }}</td>
+            <td>{{ c.ai_feature_vector.len_rev }}</td></tr>
+          <tr><td>3' GC Clamp</td>
+            <td>{{ "%.1f" | format(c.ai_feature_vector.end3_gc_fwd) }}%</td>
+            <td>{{ "%.1f" | format(c.ai_feature_vector.end3_gc_rev) }}%</td></tr>
+          <tr><td>Dinuc Entropy</td>
+            <td>{{ "%.3f" | format(c.ai_feature_vector.dinuc_entropy_fwd) }}</td>
+            <td>{{ "%.3f" | format(c.ai_feature_vector.dinuc_entropy_rev) }}</td></tr>
+          <tr><td>Tm Δ (°C)</td>
+            <td colspan="2">{{ "%.2f" | format(c.ai_feature_vector.tm_delta) }}</td></tr>
+          <tr><td>Product Size</td>
+            <td colspan="2">{{ c.ai_feature_vector.product_size }} bp</td></tr>
+          <tr><td>Region Entropy</td>
+            <td colspan="2">{{ "%.4f" | format(c.ai_feature_vector.region_entropy) }}</td></tr>
+        </table>
+      </div>
+      {% endif %}
+      {% if c.ai_breakdown %}
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:8px">Score Breakdown (Heuristic)</div>
+        <table>
+          <tr><th>Component</th><th>Value</th><th>Δ Score</th><th>Note</th></tr>
+          {% for item in c.ai_breakdown %}
+          <tr>
+            <td>{{ item.component }}</td>
+            <td>{{ item.value if item.value is not none else "—" }}</td>
+            <td style="font-weight:600;color:{{ '#166534' if item.delta > 0 else ('#991b1b' if item.delta < 0 else '#475569') }}">
+              {% if item.delta > 0 %}+{% endif %}{{ "%.1f" | format(item.delta) }}
+            </td>
+            <td style="color:#64748b;font-size:11px">{{ item.note }}</td>
+          </tr>
+          {% endfor %}
+          <tr style="border-top:2px solid #e2e8f0;background:#f8fafc">
+            <td colspan="2"><strong>Total AI Score</strong></td>
+            <td colspan="2"><strong>{{ "%.1f" | format(c.ai_score) }}</strong></td>
+          </tr>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+  </details>
+  {% endfor %}
+</div>
+
 <footer>OpenBioShield MVP &mdash; Generated {{ generated_at }}</footer>
 </body>
 </html>
@@ -259,8 +331,10 @@ class ReportService:
                     "gc_probe":           _safe_round(c.get("gc_probe"), 2),
                     "probe_center_score": _safe_round(c.get("probe_center_score"), 1),
                     "product_size":       c.get("product_size", 0),
-                    "specificity":        _safe_round(c.get("specificity_score"), 4),
-                    "penalty_reason":     c.get("penalty_reason", ""),
+                    "specificity":          _safe_round(c.get("specificity_score"), 4),
+                    "penalty_reason":       c.get("penalty_reason", ""),
+                    "ai_feature_vector":    c.get("ai_feature_vector"),
+                    "ai_breakdown":         c.get("ai_breakdown"),
                 }
                 for c in top10
             ],

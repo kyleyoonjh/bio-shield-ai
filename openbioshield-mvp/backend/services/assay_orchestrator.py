@@ -164,7 +164,9 @@ class AssayOrchestrator:
             def _run_ai(candidates):
                 for cand in candidates:
                     ai = self.ai_scoring.predict_efficiency(cand)
-                    cand["ai_score"] = ai["ai_score"]
+                    cand["ai_score"]           = ai["ai_score"]
+                    cand["ai_feature_vector"]  = ai.get("feature_vector")
+                    cand["ai_breakdown"]       = ai.get("ai_breakdown")
                 return candidates
 
             validated = await asyncio.to_thread(_run_ai, validated_spec)

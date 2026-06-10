@@ -36,12 +36,15 @@ class AIScoringService:
 
         if self._model is not None:
             score = self._xgb_predict(feats)
+            breakdown = None
         else:
             score = self._heuristic_score(feats)
+            breakdown = self._heuristic_score_breakdown(feats)
 
         return {
             "ai_score":       round(score, 2),
             "feature_vector": feats,
+            "ai_breakdown":   breakdown,
         }
 
     # ── Feature extraction ─────────────────────────────────────────────────
@@ -120,6 +123,52 @@ class AIScoringService:
         return max(0.0, min(100.0, score))
 
     # ── XGBoost model (optional) ───────────────────────────────────────────
+
+    @staticmethod
+    def _heuristic_score_breakdown(f: dict) -> list[dict]:
+        """Per-component contribution list for score transparency."""
+        items = [{"component": "Base score", "value": None, "delta": 60.0, "note": "starting point"}]
+
+        for gc_key, label in [("gc_fwd", "GC% Forward"), ("gc_rev", "GC% Reverse")]:
+            dev = abs(f[gc_key] - 50.0)
+            delta = -max(0, dev - 10) * 0.8
+            items.append({"component": label, "value": round(f[gc_key], 1),
+                          "delta": round(delta, 2), "note": "ideal 40–60%"})
+
+        delta = -f["tm_delta"] * 3
+        items.append({"component": "Tm Balance", "value": round(f["tm_delta"], 2),
+                      "delta": round(delta, 2),
+                      "note": f"ΔTm={f['tm_delta']:.1f}°C (ideal <1°C)"})
+
+        for end_key, label in [("end3_gc_fwd", "3' GC Clamp Fwd"), ("end3_gc_rev", "3' GC Clamp Rev")]:
+            pct = f[end_key]
+            if pct < 40:
+                d, note = -8.0, "too weak (<40%)"
+            elif pct > 80:
+                d, note = -5.0, "too strong (>80%)"
+            else:
+                d, note = 0.0, "ok (40–80%)"
+            items.append({"component": label, "value": round(pct, 1), "delta": d, "note": note})
+
+        avg_ent = (f["dinuc_entropy_fwd"] + f["dinuc_entropy_rev"]) / 2
+        items.append({"component": "Dinuc Entropy", "value": round(avg_ent, 3),
+                      "delta": round((avg_ent - 2.0) * 3, 2),
+                      "note": "sequence complexity (>2 bits ideal)"})
+
+        ps = f["product_size"]
+        if 80 <= ps <= 200:
+            ps_delta, ps_note = 5.0, "ideal qPCR range (80–200 bp)"
+        elif ps > 250:
+            ps_delta, ps_note = -5.0, "too large (>250 bp)"
+        else:
+            ps_delta, ps_note = 0.0, "acceptable"
+        items.append({"component": "Product Size", "value": ps, "delta": ps_delta, "note": ps_note})
+
+        items.append({"component": "Region Entropy", "value": round(f["region_entropy"], 4),
+                      "delta": round(-f["region_entropy"] * 10, 2),
+                      "note": "conservation quality (low = better)"})
+
+        return items
 
     @staticmethod
     def _try_load_xgb():
