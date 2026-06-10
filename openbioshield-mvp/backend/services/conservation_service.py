@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 ENTROPY_THRESHOLD = 0.5
 MIN_REGION_LEN    = 18   # min nt for a valid primer region
 WINDOW_SIZE       = 30   # scanning window
+MAX_REGION_LEN    = 500  # max template size for Primer3 (C ext segfaults on huge inputs)
+MAX_SUBS_PER_REGION = 8  # max sub-windows when splitting an oversized region
+MAX_TOTAL_REGIONS = 20   # global cap to prevent Primer3 saturation
 
 
 class ConservationService:
@@ -107,20 +110,68 @@ class ConservationService:
 
                 region_len = end - i
                 if region_len >= self.min_region_len:
-                    consensus = self._consensus(records, i, end)
-                    results.append({
-                        "start":        i,
-                        "end":          end,
-                        "length":       region_len,
-                        "mean_entropy": round(mean_ent, 4),
-                        "consensus_seq": consensus,
-                    })
+                    if region_len > MAX_REGION_LEN:
+                        # Split oversized region into evenly-distributed sub-windows
+                        # so Primer3 never receives a template larger than MAX_REGION_LEN
+                        results.extend(self._split_region(records, i, end, mean_ent))
+                    else:
+                        consensus = self._consensus(records, i, end)
+                        results.append({
+                            "start":        i,
+                            "end":          end,
+                            "length":       region_len,
+                            "mean_entropy": round(mean_ent, 4),
+                            "consensus_seq": consensus,
+                        })
                 i = end  # skip scanned region
             else:
                 i += 1
 
         results.sort(key=lambda r: r["mean_entropy"])
+        if len(results) > MAX_TOTAL_REGIONS:
+            logger.info("[conservation] capping %d regions → %d", len(results), MAX_TOTAL_REGIONS)
+            results = results[:MAX_TOTAL_REGIONS]
         return results
+
+    def _split_region(
+        self,
+        records: list[dict],
+        start: int,
+        end: int,
+        mean_ent: float,
+    ) -> list[dict]:
+        """Split a region wider than MAX_REGION_LEN into evenly-spaced sub-windows."""
+        region_len = end - start
+        # Number of sub-windows capped by MAX_SUBS_PER_REGION
+        n = min(MAX_SUBS_PER_REGION, math.ceil(region_len / MAX_REGION_LEN))
+        if n <= 1:
+            # Single centered sub-window
+            mid = start + (region_len - MAX_REGION_LEN) // 2
+            s, e = mid, min(mid + MAX_REGION_LEN, end)
+            return [{
+                "start": s, "end": e, "length": e - s,
+                "mean_entropy": round(mean_ent, 4),
+                "consensus_seq": self._consensus(records, s, e),
+            }]
+        # Evenly-distributed starting positions across the region
+        stride = max(1, (region_len - MAX_REGION_LEN) // (n - 1))
+        subs = []
+        for k in range(n):
+            s = start + k * stride
+            e = min(s + MAX_REGION_LEN, end)
+            sub_len = e - s
+            if sub_len < self.min_region_len:
+                continue
+            subs.append({
+                "start": s, "end": e, "length": sub_len,
+                "mean_entropy": round(mean_ent, 4),
+                "consensus_seq": self._consensus(records, s, e),
+            })
+        logger.info(
+            "[conservation] split region %d-%d (%d bp) → %d sub-windows",
+            start, end, region_len, len(subs),
+        )
+        return subs
 
     @staticmethod
     def _consensus(records: list[dict], start: int, end: int) -> str:

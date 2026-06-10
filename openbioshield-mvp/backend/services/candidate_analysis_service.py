@@ -61,7 +61,8 @@ _DEFAULT_P3: dict[str, Any] = {
     "PRIMER_MAX_SELF_ANY_TH":     45.0,
     "PRIMER_MAX_SELF_END_TH":     35.0,
     "PRIMER_MAX_HAIRPIN_TH":      24.0,
-    "PRIMER_PRODUCT_SIZE_RANGE":  [[100, 250]],
+    # Wider product range so probe has room between primer binding sites
+    "PRIMER_PRODUCT_SIZE_RANGE":  [[80, 300]],
 }
 
 # Probe (internal oligo) settings added when assay_type == "qPCR"
@@ -69,14 +70,18 @@ _PROBE_P3: dict[str, Any] = {
     "PRIMER_PICK_INTERNAL_OLIGO":       1,
     "PRIMER_INTERNAL_OPT_SIZE":         22,
     "PRIMER_INTERNAL_MIN_SIZE":         18,
-    "PRIMER_INTERNAL_MAX_SIZE":         26,
-    "PRIMER_INTERNAL_OPT_TM":          69.0,
-    "PRIMER_INTERNAL_MIN_TM":          67.0,
-    "PRIMER_INTERNAL_MAX_TM":          72.0,
-    "PRIMER_INTERNAL_MIN_GC":          40.0,
-    "PRIMER_INTERNAL_MAX_GC":          65.0,
+    "PRIMER_INTERNAL_MAX_SIZE":         28,
+    # Probe Tm must be 8-10°C above primer Tm (primers ~62°C → probe ~70°C)
+    "PRIMER_INTERNAL_OPT_TM":          70.0,
+    "PRIMER_INTERNAL_MIN_TM":          65.0,
+    "PRIMER_INTERNAL_MAX_TM":          75.0,
+    # Wider GC range to reduce false-reject rate
+    "PRIMER_INTERNAL_MIN_GC":          35.0,
+    "PRIMER_INTERNAL_MAX_GC":          70.0,
     "PRIMER_INTERNAL_MAX_SELF_ANY_TH": 45.0,
     "PRIMER_INTERNAL_MAX_HAIRPIN_TH":  24.0,
+    # Relax poly-X to 5 (default 4 is very strict for viral sequences)
+    "PRIMER_INTERNAL_MAX_POLY_X":       5,
 }
 
 
@@ -326,8 +331,8 @@ class CandidateAnalysisService:
                     # Rule 2: homopolymer run (≥4) inhibits hybridisation / signal
                     probe_ok = (
                         probe_upper[0] != "G"
-                        and "GGGG" not in probe_upper
-                        and "CCCC" not in probe_upper
+                        and "GGGGG" not in probe_upper
+                        and "CCCCC" not in probe_upper
                     )
                     if not probe_ok:
                         logger.debug("[candidate] probe failed quality filter (pair %d): %s", i, probe_seq[:12])

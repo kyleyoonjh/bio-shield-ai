@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { AssayStatusResponse } from "../types";
+import type { AssayPrimer, AssayStatusResponse } from "../types";
+import CandidateDetailDrawer from "./assay/CandidateDetailDrawer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -157,6 +158,7 @@ export default function AssayDesignPage() {
   const [recentJobs, setRecentJobs]     = useState<JobListEntry[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
   const [reportHtml, setReportHtml]   = useState<string | null>(null);
+  const [selectedPrimer, setSelectedPrimer] = useState<AssayPrimer | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -722,8 +724,9 @@ export default function AssayDesignPage() {
               {/* Ranked primer table */}
               {result.primers && result.primers.length > 0 && (
                 <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
-                  <div className="px-5 py-3 border-b border-slate-700">
+                  <div className="px-5 py-3 border-b border-slate-700 flex items-center justify-between">
                     <h3 className="text-slate-200 font-medium text-sm">최적 프라이머 랭킹</h3>
+                    <span className="text-xs text-slate-500">행 클릭 → 상세 분석</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
@@ -760,9 +763,14 @@ export default function AssayDesignPage() {
                         {result.primers.map(p => (
                           <tr
                             key={p.id}
-                            className={`border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors ${
+                            onClick={() => {
+                              console.log('[XPR] row clicked | rank=', p.final_rank, 'id=', p.id, 'primer=', p);
+                              setSelectedPrimer(p);
+                              console.log('[XPR] setSelectedPrimer called');
+                            }}
+                            className={`border-b border-slate-700/50 hover:bg-slate-700/40 transition-colors cursor-pointer ${
                               p.final_rank === 1 ? "bg-violet-900/20" : ""
-                            }`}
+                            } ${selectedPrimer?.id === p.id ? "ring-1 ring-inset ring-violet-500/50" : ""}`}
                           >
                             <td className="px-3 py-3 text-center">
                               {p.final_rank === 1 ? (
@@ -906,6 +914,13 @@ export default function AssayDesignPage() {
           )}
         </div>
       </div>
+
+      {/* ── XPR Candidate Detail Drawer ─────────────────────────────────────── */}
+      <CandidateDetailDrawer
+        primer={selectedPrimer}
+        allPrimers={result?.primers ?? []}
+        onClose={() => setSelectedPrimer(null)}
+      />
     </div>
   );
 }
