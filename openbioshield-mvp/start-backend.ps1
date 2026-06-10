@@ -18,4 +18,4 @@ if ($existing) {
 $backendDir = Join-Path $PSScriptRoot "backend"
 Write-Host "백엔드 시작: http://127.0.0.1:$Port" -ForegroundColor Green
 Set-Location $backendDir
-uvicorn main:app --host 127.0.0.1 --port $Port --reload
+uvicorn main:app --host 127.0.0.1 --port $Port

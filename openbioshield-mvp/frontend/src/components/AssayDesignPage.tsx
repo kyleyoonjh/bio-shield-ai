@@ -897,7 +897,7 @@ export default function AssayDesignPage() {
                     srcDoc={reportHtml}
                     className="w-full border-0"
                     style={{ height: "600px" }}
-                    sandbox="allow-same-origin"
+                    sandbox="allow-scripts allow-same-origin"
                     title="Assay Design Report"
                   />
                 </div>
