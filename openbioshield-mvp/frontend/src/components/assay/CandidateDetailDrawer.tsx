@@ -4,8 +4,10 @@ import { computeExplainability, type RiskLevel } from "../../utils/xprEngine";
 
 // ── Radar Chart ───────────────────────────────────────────────────────────────
 
+import type { RadarData } from "../../utils/xprEngine";
+
 interface RadarChartProps {
-  values: Record<string, number>; // 0–100
+  values: RadarData; // 0–100
 }
 
 function RadarChart({ values }: RadarChartProps) {
