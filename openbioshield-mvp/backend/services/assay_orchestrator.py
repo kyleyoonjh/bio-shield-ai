@@ -82,15 +82,17 @@ class AssayOrchestrator:
 
             # Step 3 — Primer3 candidates
             await _progress(3, "Generating primer candidates (Primer3)")
-            raw_candidates = self.candidate.generate_primers(regions, advanced_options)
+            raw_candidates = self.candidate.generate_primers(regions, advanced_options, assay_type=assay_type)
             if not raw_candidates:
                 raise ValueError("Primer3 produced no candidates — try relaxing parameters")
 
-            # Step 4 — Specificity filter
+            # Step 4 — Specificity filter (probe included when present)
             await _progress(4, f"Running off-target specificity filter ({len(raw_candidates)} candidates)")
             validated_spec: list[dict] = []
             for cand in raw_candidates:
-                spec = self.off_target.validate_specificity(cand["forward"], cand["reverse"])
+                spec = self.off_target.validate_specificity(
+                    cand["forward"], cand["reverse"], cand.get("probe")
+                )
                 if not spec["is_valid"]:
                     continue
                 cand["specificity_valid"] = True
@@ -106,10 +108,16 @@ class AssayOrchestrator:
                 cov = self.coverage.calculate_coverage(cand["forward"], cand["reverse"], fasta_path)
                 cand["coverage_score"] = cov["coverage_score"]
 
-            # Step 6 — Thermodynamic scoring
-            await _progress(6, "Thermodynamic scoring (Tm, GC, dimer, hairpin)")
+            # Step 6 — Thermodynamic scoring (probe cross-dimer included when present)
+            await _progress(6, "Thermodynamic scoring (Tm, GC, dimer, hairpin, cross-dimer)")
             for cand in validated_spec:
-                thermo = self.thermo.evaluate_kinetics(cand["forward"], cand["reverse"])
+                probe = cand.get("probe")
+                if probe:
+                    thermo = self.thermo.evaluate_kinetics_with_probe(
+                        cand["forward"], cand["reverse"], probe
+                    )
+                else:
+                    thermo = self.thermo.evaluate_kinetics(cand["forward"], cand["reverse"])
                 cand.update(thermo)
 
             # Step 7 — AI efficiency scoring
@@ -129,14 +137,14 @@ class AssayOrchestrator:
             report_html = self.report.generate_summary(assay_id, ranked)
             report_path = f"/api/v3/assay/report/{assay_id}"
 
+            # Persist top primers BEFORE marking COMPLETED to avoid race condition
+            await self._save_primers(assay_id, ranked[:10])
+
             await self._update_status(
                 assay_id, "COMPLETED",
                 report_path=report_path,
                 report_html=report_html,
             )
-
-            # Persist top primers to Supabase
-            await self._save_primers(assay_id, ranked[:10])
 
             return {
                 "report_path":   report_path,
@@ -184,18 +192,23 @@ class AssayOrchestrator:
             client = _get_client()
             rows = [
                 {
-                    "assay_id":         str(assay_id),
-                    "forward_primer":   c["forward"],
-                    "reverse_primer":   c["reverse"],
-                    "tm":               (c.get("tm_fwd", 0) + c.get("tm_rev", 0)) / 2,
-                    "gc":               (c.get("gc_fwd", 0) + c.get("gc_rev", 0)) / 2,
-                    "coverage_score":   c.get("coverage_score", 0),
-                    "specificity_score": c.get("specificity_score", 0),
-                    "thermo_score":     c.get("thermo_score", 0),
-                    "ai_score":         c.get("ai_score", 0),
-                    "final_score":      c.get("final_score", 0),
-                    "final_rank":       c.get("final_rank", 0),
-                    "product_size":     c.get("product_size", 0),
+                    "assay_id":          str(assay_id),
+                    "forward_primer":    c["forward"],
+                    "reverse_primer":    c["reverse"],
+                    "probe_sequence":     c.get("probe"),
+                    "tm":                round((c.get("tm_fwd", 0) + c.get("tm_rev", 0)) / 2, 2),
+                    "tm_fwd":            round(c["tm_fwd"], 2) if c.get("tm_fwd") else None,
+                    "tm_rev":            round(c["tm_rev"], 2) if c.get("tm_rev") else None,
+                    "tm_probe":          round(c["tm_probe"], 2) if c.get("tm_probe") else None,
+                    "probe_center_score": c.get("probe_center_score"),
+                    "gc":                round((c.get("gc_fwd", 0) + c.get("gc_rev", 0)) / 2, 4),
+                    "coverage_score":    min(round(c.get("coverage_score", 0), 4), 100.0),
+                    "specificity_score": min(round(c.get("specificity_score", 0), 4), 100.0),
+                    "thermo_score":      min(round(c.get("thermo_score", 0), 4), 100.0),
+                    "ai_score":          min(round(c.get("ai_score", 0), 4), 100.0),
+                    "final_score":       min(round(c.get("final_score", 0), 4), 100.0),
+                    "final_rank":        c.get("final_rank", 0),
+                    "product_size":      c.get("product_size", 0),
                 }
                 for c in ranked
             ]

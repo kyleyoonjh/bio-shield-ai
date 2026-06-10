@@ -27,7 +27,67 @@ MAX_DIMER_DG = -6.0  # kcal/mol
 MAX_HAIR_DG  = -2.0  # kcal/mol
 
 
+PROBE_OPT_TM  = 69.0
+PROBE_TM_TOL  = 3.0   # ±3 °C from optimal probe Tm
+MAX_CROSS_DG  = -6.0  # kcal/mol — cross-dimer rejection threshold
+
+
 class ThermoScoringService:
+    def evaluate_kinetics_with_probe(self, forward: str, reverse: str, probe: str) -> dict:
+        """
+        Full thermodynamic evaluation for a 3-component TaqMan set.
+
+        Adds on top of evaluate_kinetics():
+          - Probe Tm deviation from 69 °C
+          - Probe self-hairpin and self-dimer
+          - Fwd↔Probe and Rev↔Probe cross-dimer
+        """
+        result = self.evaluate_kinetics(forward, reverse)
+        probe_upper = probe.upper()
+
+        tm_probe        = self._calc_tm(probe_upper)
+        probe_hair_dg   = self._hairpin_dg(probe_upper)
+        probe_dimer_dg  = self._self_dimer_dg(probe_upper)
+        fwd_probe_dg    = self._hetero_dimer_dg(forward.upper(), probe_upper)
+        rev_probe_dg    = self._hetero_dimer_dg(reverse.upper(), probe_upper)
+
+        penalties = [r for r in result["penalty_reason"].split("; ") if r and r != "Pass"]
+        score = result["thermo_score"]
+
+        tm_probe_dev = abs(tm_probe - PROBE_OPT_TM)
+        if tm_probe_dev > PROBE_TM_TOL:
+            penalty = min(20, (tm_probe_dev - PROBE_TM_TOL) * 6)
+            score  -= penalty
+            penalties.append(f"Probe Tm dev {tm_probe_dev:.1f}°C")
+
+        if probe_hair_dg < MAX_HAIR_DG:
+            score -= 10
+            penalties.append(f"Probe hairpin ΔG {probe_hair_dg:.1f}")
+
+        if probe_dimer_dg < MAX_DIMER_DG:
+            score -= 10
+            penalties.append(f"Probe self-dimer ΔG {probe_dimer_dg:.1f}")
+
+        if fwd_probe_dg < MAX_CROSS_DG:
+            score -= 12
+            penalties.append(f"Fwd↔Probe ΔG {fwd_probe_dg:.1f}")
+
+        if rev_probe_dg < MAX_CROSS_DG:
+            score -= 12
+            penalties.append(f"Rev↔Probe ΔG {rev_probe_dg:.1f}")
+
+        score = max(0.0, min(100.0, score))
+        result.update({
+            "thermo_score":    round(score, 2),
+            "tm_probe":        round(tm_probe, 2),
+            "probe_hairpin_dg": round(probe_hair_dg, 2),
+            "probe_dimer_dg":  round(probe_dimer_dg, 2),
+            "fwd_probe_dg":    round(fwd_probe_dg, 2),
+            "rev_probe_dg":    round(rev_probe_dg, 2),
+            "penalty_reason":  "; ".join(penalties) if penalties else "Pass",
+        })
+        return result
+
     def evaluate_kinetics(self, forward: str, reverse: str) -> dict:
         """
         Returns:
@@ -147,6 +207,19 @@ class ThermoScoringService:
                     seq, mv_conc=50.0, dv_conc=1.5, dntp_conc=0.2, dna_conc=250.0
                 )
                 return result.dg / 1000.0  # cal/mol → kcal/mol
+            except Exception:
+                pass
+        return 0.0
+
+    @staticmethod
+    def _hetero_dimer_dg(seq1: str, seq2: str) -> float:
+        """Heterodimer ΔG between two sequences in kcal/mol."""
+        if _PRIMER3_AVAILABLE:
+            try:
+                result = _primer3.calc_heterodimer(
+                    seq1, seq2, mv_conc=50.0, dv_conc=1.5, dntp_conc=0.2, dna_conc=250.0
+                )
+                return result.dg / 1000.0
             except Exception:
                 pass
         return 0.0

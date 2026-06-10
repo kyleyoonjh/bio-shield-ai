@@ -64,6 +64,21 @@ _DEFAULT_P3: dict[str, Any] = {
     "PRIMER_PRODUCT_SIZE_RANGE":  [[100, 250]],
 }
 
+# Probe (internal oligo) settings added when assay_type == "qPCR"
+_PROBE_P3: dict[str, Any] = {
+    "PRIMER_PICK_INTERNAL_OLIGO":       1,
+    "PRIMER_INTERNAL_OPT_SIZE":         22,
+    "PRIMER_INTERNAL_MIN_SIZE":         18,
+    "PRIMER_INTERNAL_MAX_SIZE":         26,
+    "PRIMER_INTERNAL_OPT_TM":          69.0,
+    "PRIMER_INTERNAL_MIN_TM":          67.0,
+    "PRIMER_INTERNAL_MAX_TM":          72.0,
+    "PRIMER_INTERNAL_MIN_GC":          40.0,
+    "PRIMER_INTERNAL_MAX_GC":          65.0,
+    "PRIMER_INTERNAL_MAX_SELF_ANY_TH": 45.0,
+    "PRIMER_INTERNAL_MAX_HAIRPIN_TH":  24.0,
+}
+
 
 class CandidateAnalysisService:
     """
@@ -106,6 +121,7 @@ class CandidateAnalysisService:
         self,
         conserved_regions: list[dict],
         advanced_options: dict[str, Any] | None = None,
+        assay_type: str = "",
     ) -> list[dict]:
         """
         Run Primer3 on each conserved region and return a flat candidate list.
@@ -113,10 +129,14 @@ class CandidateAnalysisService:
         Each candidate dict contains:
             forward, reverse, product_size, tm_fwd, tm_rev, gc_fwd, gc_rev,
             region_start, region_end, region_entropy, pair_penalty
+        When assay_type == "qPCR", also adds: probe, tm_probe, gc_probe
         """
         all_candidates: list[dict] = []
 
+        probe_mode = assay_type.upper() in ("QPCR", "Q-PCR", "RTPCR", "RT-PCR")
         p3_global = {**self._p3_global, "PRIMER_NUM_RETURN": self.num_return}
+        if probe_mode:
+            p3_global.update(_PROBE_P3)
         if advanced_options:
             p3_global.update(
                 {k.upper(): v for k, v in advanced_options.items() if k.upper() in _DEFAULT_P3}
@@ -130,12 +150,12 @@ class CandidateAnalysisService:
             seq = region.get("consensus_seq", "")
             if len(seq) < 40:
                 continue
-            cands = self._run_primer3(seq, region, p3_global)
+            cands = self._run_primer3(seq, region, p3_global, probe_mode=probe_mode)
             all_candidates.extend(cands)
 
         logger.info(
-            "[candidate] %d primer pairs generated from %d regions",
-            len(all_candidates), len(conserved_regions),
+            "[candidate] %d primer pairs generated from %d regions (probe_mode=%s)",
+            len(all_candidates), len(conserved_regions), probe_mode,
         )
         return all_candidates
 
@@ -249,6 +269,7 @@ class CandidateAnalysisService:
         region: dict,
         p3_global: dict,
         genomic_offset: int = 0,
+        probe_mode: bool = False,
     ) -> list[dict]:
         """Call primer3.design_primers and return normalised candidate dicts."""
         try:
@@ -282,7 +303,7 @@ class CandidateAnalysisService:
             left_pos_tuple = result.get(f"PRIMER_LEFT_{i}", (0, 0))
             genomic_pos    = genomic_offset + left_pos_tuple[0]
 
-            candidates.append({
+            cand: dict[str, Any] = {
                 "forward":        fwd,
                 "reverse":        rev,
                 "product_size":   result.get(f"PRIMER_PAIR_{i}_PRODUCT_SIZE", 0),
@@ -295,7 +316,43 @@ class CandidateAnalysisService:
                 "region_entropy": region.get("mean_entropy", 0.0),
                 "pair_penalty":   round(result.get(f"PRIMER_PAIR_{i}_PENALTY", 0.0), 4),
                 "genomic_pos":    genomic_pos,
-            })
+            }
+
+            if probe_mode:
+                probe_seq = result.get(f"PRIMER_INTERNAL_{i}_SEQUENCE", "")
+                if not probe_seq:
+                    continue
+                probe_upper = probe_seq.upper()
+
+                # Rule 1: 5' G → fluorescence self-quenching
+                if probe_upper[0] == "G":
+                    logger.debug("[candidate] probe skip 5'G: %s", probe_seq[:12])
+                    continue
+
+                # Rule 2: homopolymer run (≥4) inhibits hybridisation / signal
+                if "GGGG" in probe_upper or "CCCC" in probe_upper:
+                    logger.debug("[candidate] probe skip homopolymer: %s", probe_seq[:12])
+                    continue
+
+                # Rule 3: probe centrality score (ideal = centre of amplicon)
+                internal_pos = result.get(f"PRIMER_INTERNAL_{i}", (0, 0))
+                left_pos     = result.get(f"PRIMER_LEFT_{i}",     (0, 0))
+                right_pos    = result.get(f"PRIMER_RIGHT_{i}",    (0, 0))
+                amp_start    = left_pos[0]
+                amp_end      = right_pos[0] + right_pos[1]
+                amp_len      = max(amp_end - amp_start, 1)
+                probe_center = (internal_pos[0] + internal_pos[1] / 2) - amp_start
+                amp_center   = amp_len / 2
+                offset_pct   = abs(probe_center - amp_center) / amp_len
+                # 100 at centre, 0 at > 40% offset from centre
+                probe_center_score = max(0.0, round(100.0 - offset_pct * 250.0, 1))
+
+                cand["probe"]              = probe_seq
+                cand["tm_probe"]           = round(result.get(f"PRIMER_INTERNAL_{i}_TM",         0.0), 2)
+                cand["gc_probe"]           = round(result.get(f"PRIMER_INTERNAL_{i}_GC_PERCENT",  0.0), 2)
+                cand["probe_center_score"] = probe_center_score
+
+            candidates.append(cand)
         return candidates
 
     # ── Rule-based fallback (no primer3) ─────────────────────────────────────

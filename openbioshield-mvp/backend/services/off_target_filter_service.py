@@ -41,24 +41,33 @@ class OffTargetFilterService:
 
     # ── Public API ─────────────────────────────────────────────────────────
 
-    def validate_specificity(self, forward: str, reverse: str) -> dict:
+    def validate_specificity(
+        self, forward: str, reverse: str, probe: str | None = None
+    ) -> dict:
         """
         Return:
             {is_valid, specificity_score, off_target_hits, reason}
+
+        When ``probe`` is provided it is included in the alignment/heuristic
+        check alongside the primers.
         """
         if self._bowtie2_ok:
-            return self._bowtie2_validate(forward, reverse)
+            return self._bowtie2_validate(forward, reverse, probe)
 
         logger.warning(
             "[offtarget] Bowtie2 not available — running heuristic filter"
         )
-        return self._heuristic_validate(forward, reverse)
+        return self._heuristic_validate(forward, reverse, probe)
 
     # ── Bowtie2 pipeline ───────────────────────────────────────────────────
 
-    def _bowtie2_validate(self, forward: str, reverse: str) -> dict:
+    def _bowtie2_validate(
+        self, forward: str, reverse: str, probe: str | None = None
+    ) -> dict:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".fa", delete=False) as fq:
             fq.write(f">fwd\n{forward}\n>rev\n{reverse}\n")
+            if probe:
+                fq.write(f">probe\n{probe}\n")
             fq_path = fq.name
 
         try:
@@ -115,29 +124,37 @@ class OffTargetFilterService:
     # ── Heuristic fallback (no Bowtie2) ───────────────────────────────────
 
     @staticmethod
-    def _heuristic_validate(forward: str, reverse: str) -> dict:
+    def _heuristic_validate(
+        forward: str, reverse: str, probe: str | None = None
+    ) -> dict:
         """
         Simple heuristics when alignment tools are absent:
         - Reject low-complexity sequences (runs of same base ≥6)
         - Reject extreme GC (<35% or >70%)
+        Probe uses tighter homopolymer threshold (≥4 G/C run flagged).
         """
-        for primer in (forward, reverse):
-            seq = primer.upper()
+        seqs = [(forward, "Primer"), (reverse, "Primer")]
+        if probe:
+            seqs.append((probe, "Probe"))
+
+        for seq_raw, label in seqs:
+            seq = seq_raw.upper()
             gc  = (seq.count("G") + seq.count("C")) / len(seq) * 100
             if gc < 35 or gc > 70:
                 return {
                     "is_valid":          False,
                     "specificity_score": 0.0,
                     "off_target_hits":   -1,
-                    "reason":            f"GC content out of range ({gc:.1f}%)",
+                    "reason":            f"{label} GC out of range ({gc:.1f}%)",
                 }
+            run_threshold = 4 if label == "Probe" else 6
             for base in "ACGT":
-                if base * 6 in seq:
+                if base * run_threshold in seq:
                     return {
                         "is_valid":          False,
                         "specificity_score": 0.0,
                         "off_target_hits":   -1,
-                        "reason":            f"Low-complexity run of {base}×6+",
+                        "reason":            f"{label} low-complexity run {base}×{run_threshold}+",
                     }
 
         return {

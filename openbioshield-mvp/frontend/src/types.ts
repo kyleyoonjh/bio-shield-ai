@@ -202,7 +202,12 @@ export interface AssayPrimer {
   assay_id: string;
   forward_primer: string;
   reverse_primer: string;
+  probe_sequence: string | null;
   tm: number | null;
+  tm_fwd: number | null;
+  tm_rev: number | null;
+  tm_probe: number | null;
+  probe_center_score: number | null;
   gc: number | null;
   coverage_score: number | null;
   specificity_score: number | null;

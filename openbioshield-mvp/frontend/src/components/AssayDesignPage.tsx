@@ -150,8 +150,10 @@ export default function AssayDesignPage() {
   const [result, setResult]           = useState<AssayStatusResponse | null>(null);
   const [errorMsg, setErrorMsg]       = useState<string>("");
   const [pollCount, setPollCount]     = useState(0);
-  const [currentStep, setCurrentStep] = useState(1);
-  const [recentJobs, setRecentJobs]   = useState<JobListEntry[]>([]);
+  const [currentStep, setCurrentStep]   = useState(1);  // real backend step
+  const [displayStep, setDisplayStep]   = useState(1);  // animated step (800ms per step)
+  const [pendingResult, setPendingResult] = useState<AssayStatusResponse | null>(null);
+  const [recentJobs, setRecentJobs]     = useState<JobListEntry[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -179,6 +181,25 @@ export default function AssayDesignPage() {
     }
   }, []);
 
+  // ── Animate displayStep toward currentStep at 800 ms per step ─────────────
+  useEffect(() => {
+    const targetStep = pendingResult ? 9 : currentStep;
+    if (displayStep >= targetStep) {
+      if (pendingResult && displayStep >= 9) {
+        setResult(pendingResult);
+        setPageState("done");
+        setPendingResult(null);
+        loadRecentJobs();
+        if (pendingResult.report_path) {
+          window.open(pendingResult.report_path, "_blank", "noopener,noreferrer");
+        }
+      }
+      return;
+    }
+    const t = setTimeout(() => setDisplayStep(s => Math.min(s + 1, targetStep)), 800);
+    return () => clearTimeout(t);
+  }, [displayStep, currentStep, pendingResult, loadRecentJobs]);
+
   // ── Poll job status ────────────────────────────────────────────────────────
   const pollStatus = useCallback(async (jobId: string, attempt: number) => {
     if (attempt >= POLL_MAX_ATTEMPTS) {
@@ -200,12 +221,8 @@ export default function AssayDesignPage() {
 
       if (data.status === "COMPLETED") {
         console.log("[assay] ✅ COMPLETED | primers:", data.primers?.length ?? 0, "report:", data.report_path);
-        setResult(data);
-        setPageState("done");
-        loadRecentJobs();
-        if (data.report_path) {
-          window.open(data.report_path, "_blank", "noopener,noreferrer");
-        }
+        setCurrentStep(9);
+        setPendingResult(data); // animation catches up to step 9, then transitions to done
       } else if (data.status === "FAILED") {
         console.error("[assay] ❌ FAILED | error:", data.error_message);
         setErrorMsg(data.error_message ?? "파이프라인 실패");
@@ -231,6 +248,8 @@ export default function AssayDesignPage() {
     setErrorMsg("");
     setResult(null);
     setCurrentStep(1);
+    setDisplayStep(1);
+    setPendingResult(null);
 
     if (job.status === "RUNNING") {
       setPageState("polling");
@@ -269,6 +288,8 @@ export default function AssayDesignPage() {
     setResult(null);
     setPollCount(0);
     setCurrentStep(1);
+    setDisplayStep(1);
+    setPendingResult(null);
 
     console.group("[assay] 🚀 파이프라인 시작");
     console.log("project:", projectName.trim());
@@ -359,6 +380,9 @@ export default function AssayDesignPage() {
     setResult(null);
     setErrorMsg("");
     setPollCount(0);
+    setCurrentStep(1);
+    setDisplayStep(1);
+    setPendingResult(null);
     setFastaFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -618,8 +642,8 @@ export default function AssayDesignPage() {
                   { step: 8, label: "가중치 랭킹" },
                   { step: 9, label: "보고서 생성" },
                 ].map(({ step, label }) => {
-                  const isDone    = step < currentStep;
-                  const isCurrent = step === currentStep;
+                  const isDone    = step < displayStep;
+                  const isCurrent = step === displayStep;
                   return (
                     <div key={step} className="flex items-center gap-3">
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
@@ -695,9 +719,25 @@ export default function AssayDesignPage() {
                         <tr className="border-b border-slate-700 text-slate-400">
                           <th className="px-3 py-2.5 text-left font-medium w-8">#</th>
                           <th className="px-3 py-2.5 text-left font-medium">Forward (5'→3')</th>
+                          {result.primers.some(p => p.probe_sequence) && (
+                            <th className="px-3 py-2.5 text-left font-medium">
+                              <span className="text-amber-400">Probe</span>
+                              <span className="text-slate-500 text-xs ml-1">(5'→3')</span>
+                            </th>
+                          )}
                           <th className="px-3 py-2.5 text-left font-medium">Reverse (5'→3')</th>
-                          <th className="px-3 py-2.5 text-right font-medium w-16">Tm (°C)</th>
+                          <th className="px-3 py-2.5 text-right font-medium w-24">
+                            {result.primers.some(p => p.probe_sequence)
+                              ? <span className="text-xs"><span className="text-violet-400">F</span><span className="text-slate-500">/</span><span className="text-amber-400">P</span><span className="text-slate-500">/</span><span className="text-cyan-400">R</span> Tm</span>
+                              : "Tm (°C)"}
+                          </th>
                           <th className="px-3 py-2.5 text-right font-medium w-12">크기</th>
+                          {result.primers.some(p => p.probe_sequence) && (
+                            <th className="px-3 py-2.5 text-center font-medium w-16 text-amber-400/70">중앙도</th>
+                          )}
+                          {result.primers.some(p => p.probe_sequence) && (
+                            <th className="px-3 py-2.5 text-center font-medium w-20 text-amber-400/70">Reporter</th>
+                          )}
                           <th className="px-3 py-2.5 text-left font-medium w-28">Coverage</th>
                           <th className="px-3 py-2.5 text-left font-medium w-28">Thermo</th>
                           <th className="px-3 py-2.5 text-left font-medium w-28">AI 효율</th>
@@ -724,17 +764,60 @@ export default function AssayDesignPage() {
                                 {p.forward_primer}
                               </code>
                             </td>
+                            {result.primers!.some(q => q.probe_sequence) && (
+                              <td className="px-3 py-3">
+                                {p.probe_sequence ? (
+                                  <code className="text-amber-300 font-mono text-xs tracking-wide">
+                                    {p.probe_sequence}
+                                  </code>
+                                ) : (
+                                  <span className="text-slate-600">—</span>
+                                )}
+                              </td>
+                            )}
                             <td className="px-3 py-3">
                               <code className="text-cyan-300 font-mono text-xs tracking-wide">
                                 {p.reverse_primer}
                               </code>
                             </td>
-                            <td className="px-3 py-3 text-right text-slate-300">
-                              {p.tm !== null ? p.tm.toFixed(1) : "—"}
+                            <td className="px-3 py-3 text-right whitespace-nowrap">
+                              {p.tm_probe != null ? (
+                                <span className="text-xs">
+                                  <span className="text-violet-300">{(p.tm_fwd ?? p.tm ?? 0).toFixed(1)}</span>
+                                  <span className="text-slate-500"> / </span>
+                                  <span className="text-amber-300">{p.tm_probe.toFixed(1)}</span>
+                                  <span className="text-slate-500"> / </span>
+                                  <span className="text-cyan-300">{(p.tm_rev ?? p.tm ?? 0).toFixed(1)}</span>
+                                </span>
+                              ) : (
+                                <span className="text-slate-300">{p.tm !== null ? p.tm.toFixed(1) : "—"}</span>
+                              )}
                             </td>
                             <td className="px-3 py-3 text-right text-slate-400">
                               {p.product_size ?? "—"}<span className="text-slate-600">bp</span>
                             </td>
+                            {result.primers!.some(q => q.probe_sequence) && (
+                              <td className="px-3 py-3 text-center">
+                                {p.probe_sequence && p.probe_center_score != null ? (
+                                  <span className={`text-xs font-mono ${
+                                    p.probe_center_score >= 70 ? "text-emerald-400"
+                                    : p.probe_center_score >= 40 ? "text-amber-400"
+                                    : "text-red-400"
+                                  }`}>{p.probe_center_score.toFixed(0)}</span>
+                                ) : <span className="text-slate-600">—</span>}
+                              </td>
+                            )}
+                            {result.primers!.some(q => q.probe_sequence) && (
+                              <td className="px-3 py-3 text-center">
+                                {p.probe_sequence ? (
+                                  <span className="text-xs">
+                                    <span className="text-emerald-300 font-mono">FAM</span>
+                                    <span className="text-slate-500">/</span>
+                                    <span className="text-slate-400 font-mono">BHQ1</span>
+                                  </span>
+                                ) : <span className="text-slate-600">—</span>}
+                              </td>
+                            )}
                             <td className="px-3 py-3">
                               {scoreBar(p.coverage_score, 100)}
                             </td>
