@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   fetchGlobal, fetchCountries,
-  KOREA_REGIONAL, fmtNum, fmtCompact,
+  KOREA_REGIONAL, fmtNum,
   type GlobalStats, type CountryData,
 } from "../../services/covidService";
 import CovidWorldMap from "./CovidWorldMap";
