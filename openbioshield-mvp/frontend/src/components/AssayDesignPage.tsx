@@ -16,8 +16,9 @@ interface JobListEntry {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const POLL_INTERVAL_MS = 300;
-const POLL_MAX_ATTEMPTS = 1200; // 6 minutes (300ms × 1200 = 360s)
+const POLL_INTERVAL_MS  = 300;
+const POLL_MAX_ATTEMPTS = 1200;  // 6 minutes
+const MAX_RECENT_JOBS   = 5;
 
 // ─── Test data generator ──────────────────────────────────────────────────────
 
@@ -155,6 +156,7 @@ export default function AssayDesignPage() {
   const [pendingResult, setPendingResult] = useState<AssayStatusResponse | null>(null);
   const [recentJobs, setRecentJobs]     = useState<JobListEntry[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
+  const [reportHtml, setReportHtml]   = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -169,7 +171,7 @@ export default function AssayDesignPage() {
   const loadRecentJobs = useCallback(async () => {
     setJobsLoading(true);
     try {
-      const res = await fetch("/api/v3/assay/jobs?limit=10");
+      const res = await fetch(`/api/v3/assay/jobs?limit=${MAX_RECENT_JOBS}`);
       if (res.ok) {
         const data: JobListEntry[] = await res.json();
         setRecentJobs(data);
@@ -190,15 +192,24 @@ export default function AssayDesignPage() {
         setPageState("done");
         setPendingResult(null);
         loadRecentJobs();
-        if (pendingResult.report_path) {
-          window.open(pendingResult.report_path, "_blank", "noopener,noreferrer");
-        }
       }
       return;
     }
     const t = setTimeout(() => setDisplayStep(s => Math.min(s + 1, targetStep)), 800);
     return () => clearTimeout(t);
   }, [displayStep, currentStep, pendingResult, loadRecentJobs]);
+
+  // ── Fetch report HTML when pipeline done ───────────────────────────────────
+  useEffect(() => {
+    if (pageState !== "done" || !result?.report_path) {
+      setReportHtml(null);
+      return;
+    }
+    fetch(result.report_path)
+      .then(res => (res.ok ? res.text() : Promise.reject(res.status)))
+      .then(html => setReportHtml(html))
+      .catch(() => setReportHtml(null));
+  }, [pageState, result?.report_path]);
 
   // ── Poll job status ────────────────────────────────────────────────────────
   const pollStatus = useCallback(async (jobId: string, attempt: number) => {
@@ -383,6 +394,7 @@ export default function AssayDesignPage() {
     setCurrentStep(1);
     setDisplayStep(1);
     setPendingResult(null);
+    setReportHtml(null);
     setFastaFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -856,6 +868,32 @@ export default function AssayDesignPage() {
                   Coverage: 다변이 커버리지 (0–1) · Thermo: 열역학 점수/100 · AI: 효율 예측/100
                 </p>
               </div>
+
+              {/* Inline HTML report */}
+              {reportHtml && (
+                <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+                  <div className="px-5 py-3 border-b border-slate-700 flex items-center justify-between">
+                    <h3 className="text-slate-200 font-medium text-sm">보고서</h3>
+                    {result.report_path && (
+                      <a
+                        href={result.report_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        새 탭에서 열기 ↗
+                      </a>
+                    )}
+                  </div>
+                  <iframe
+                    srcDoc={reportHtml}
+                    className="w-full border-0"
+                    style={{ height: "600px" }}
+                    sandbox="allow-same-origin"
+                    title="Assay Design Report"
+                  />
+                </div>
+              )}
 
               {/* New design button */}
               <button

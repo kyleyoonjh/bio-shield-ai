@@ -187,32 +187,46 @@ class AssayOrchestrator:
 
     @staticmethod
     async def _save_primers(assay_id, ranked: list[dict]) -> None:
+        _PROBE_COLS = {"probe_sequence", "tm_fwd", "tm_rev", "tm_probe", "probe_center_score"}
         try:
             from services.supabase_service import _get_client
             client = _get_client()
             rows = [
                 {
-                    "assay_id":          str(assay_id),
-                    "forward_primer":    c["forward"],
-                    "reverse_primer":    c["reverse"],
+                    "assay_id":           str(assay_id),
+                    "forward_primer":     c["forward"],
+                    "reverse_primer":     c["reverse"],
                     "probe_sequence":     c.get("probe"),
-                    "tm":                round((c.get("tm_fwd", 0) + c.get("tm_rev", 0)) / 2, 2),
-                    "tm_fwd":            round(c["tm_fwd"], 2) if c.get("tm_fwd") else None,
-                    "tm_rev":            round(c["tm_rev"], 2) if c.get("tm_rev") else None,
-                    "tm_probe":          round(c["tm_probe"], 2) if c.get("tm_probe") else None,
+                    "tm":                 round((c.get("tm_fwd", 0) + c.get("tm_rev", 0)) / 2, 2),
+                    "tm_fwd":             round(c["tm_fwd"], 2) if c.get("tm_fwd") else None,
+                    "tm_rev":             round(c["tm_rev"], 2) if c.get("tm_rev") else None,
+                    "tm_probe":           round(c["tm_probe"], 2) if c.get("tm_probe") else None,
                     "probe_center_score": c.get("probe_center_score"),
-                    "gc":                round((c.get("gc_fwd", 0) + c.get("gc_rev", 0)) / 2, 4),
-                    "coverage_score":    min(round(c.get("coverage_score", 0), 4), 100.0),
-                    "specificity_score": min(round(c.get("specificity_score", 0), 4), 100.0),
-                    "thermo_score":      min(round(c.get("thermo_score", 0), 4), 100.0),
-                    "ai_score":          min(round(c.get("ai_score", 0), 4), 100.0),
-                    "final_score":       min(round(c.get("final_score", 0), 4), 100.0),
-                    "final_rank":        c.get("final_rank", 0),
-                    "product_size":      c.get("product_size", 0),
+                    "gc":                 round((c.get("gc_fwd", 0) + c.get("gc_rev", 0)) / 2, 4),
+                    "coverage_score":     min(round(c.get("coverage_score", 0), 4), 100.0),
+                    "specificity_score":  min(round(c.get("specificity_score", 0), 4), 100.0),
+                    "thermo_score":       min(round(c.get("thermo_score", 0), 4), 100.0),
+                    "ai_score":           min(round(c.get("ai_score", 0), 4), 100.0),
+                    "final_score":        min(round(c.get("final_score", 0), 4), 100.0),
+                    "final_rank":         c.get("final_rank", 0),
+                    "product_size":       c.get("product_size", 0),
                 }
                 for c in ranked
             ]
-            if rows:
+            if not rows:
+                return
+            try:
                 client.table("assay_primers").insert(rows).execute()
+            except Exception as probe_exc:
+                # Probe columns may not exist yet (pending Supabase migration).
+                # Fall back to base columns so at least primer sequences are saved.
+                logger.warning(
+                    "[pipeline] full primer INSERT failed (%s) — retrying without probe columns", probe_exc
+                )
+                base_rows = [
+                    {k: v for k, v in row.items() if k not in _PROBE_COLS}
+                    for row in rows
+                ]
+                client.table("assay_primers").insert(base_rows).execute()
         except Exception as exc:
             logger.warning("[pipeline] Supabase primer save failed: %s", exc)

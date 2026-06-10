@@ -16,8 +16,13 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Uploa
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
+import glob as _glob
+import os as _os
+
 logger = logging.getLogger("openbioshield.assay")
 router = APIRouter(prefix="/api/v3/assay", tags=["Assay Design"])
+
+MAX_JOBS = 5  # Phase 3 작업 보존 한도 (FIFO 자동 삭제)
 
 
 # ─── Request / Response Models ────────────────────────────────────────────────
@@ -135,7 +140,7 @@ async def get_report(job_id: str):
 
 
 @router.get("/jobs")
-async def list_jobs(limit: int = 20) -> list[dict]:
+async def list_jobs(limit: int = MAX_JOBS) -> list[dict]:
     """Return recent assay jobs from Supabase."""
     try:
         from services.supabase_service import _get_client
@@ -169,10 +174,47 @@ async def _create_job(project_name: str, target_name: str, assay_type: str) -> s
         }).execute()
         job_id = res.data[0]["id"]
         logger.info("[assay] Supabase job 생성 완료 | job_id=%s", job_id)
+        _purge_excess_jobs(client)
         return job_id
     except Exception as exc:
         logger.error("[assay] Supabase job 생성 실패: %s", exc)
         raise HTTPException(status_code=503, detail=f"Database unavailable: {exc}") from exc
+
+
+def _purge_excess_jobs(client) -> None:
+    """FIFO: MAX_JOBS 초과 시 가장 오래된 작업과 관련 파일 삭제."""
+    try:
+        res = (
+            client.table("assay_jobs")
+            .select("id")
+            .order("created_at", desc=False)
+            .execute()
+        )
+        all_ids = [r["id"] for r in (res.data or [])]
+        excess = all_ids[: max(0, len(all_ids) - MAX_JOBS)]
+        if not excess:
+            return
+
+        report_dir = _os.path.join(_os.path.dirname(__file__), "..", "reports")
+
+        for job_id in excess:
+            # Cascade DELETE: assay_primers도 자동 삭제
+            client.table("assay_jobs").delete().eq("id", job_id).execute()
+            logger.info("[purge] deleted old job %s", job_id)
+
+            # 물리적 리포트 파일 삭제 (로컬 reports/ 및 /tmp)
+            for pattern in (
+                _os.path.join(report_dir, f"assay_{job_id}_*"),
+                f"/tmp/assay_{job_id}_*",
+            ):
+                for f in _glob.glob(pattern):
+                    try:
+                        _os.unlink(f)
+                        logger.debug("[purge] deleted report file %s", f)
+                    except OSError:
+                        pass
+    except Exception as exc:
+        logger.warning("[purge] excess job purge failed: %s", exc)
 
 
 async def _run_pipeline_task(

@@ -9,18 +9,20 @@ import { ToastContainer, makeToast } from "./components/Toast";
 import type { ToastMessage } from "./components/Toast";
 import type { DiseaseType, VariantInfo, Mutation } from "./types";
 
-type Tab = "validation" | "dna" | "primer";
+// Phase 1: DNA 탐색 + Primer 구조만 (통계 검증은 Phase 2로 이동)
+type Tab = "dna" | "primer";
 type Phase = "1" | "2" | "3";
-type Phase2Page = "risk-engine" | "data-collection";
+// Phase 2에 통계 검증(stat-validation) 추가
+type Phase2Page = "risk-engine" | "stat-validation" | "data-collection";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "validation", label: "통계 검증",   icon: "📊" },
-  { id: "dna",        label: "DNA 맵",      icon: "🧬" },
-  { id: "primer",     label: "Primer 구조", icon: "🔬" },
+  { id: "dna",    label: "DNA 맵",      icon: "🧬" },
+  { id: "primer", label: "Primer 구조", icon: "🔬" },
 ];
 
 const PHASE2_PAGES: { id: Phase2Page; label: string; icon: string }[] = [
   { id: "risk-engine",     label: "Risk Engine",     icon: "⚡" },
+  { id: "stat-validation", label: "통계 검증",         icon: "📊" },
   { id: "data-collection", label: "Data Collection", icon: "🗄️" },
 ];
 
@@ -31,17 +33,17 @@ const DISEASES: { id: DiseaseType; label: string }[] = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab]     = useState<Tab>("validation");
-  const [phase, setPhase]             = useState<Phase>("1");
-  const [phase2Page, setPhase2Page]   = useState<Phase2Page>("risk-engine");
+  const [activeTab, setActiveTab]   = useState<Tab>("dna");
+  const [phase, setPhase]           = useState<Phase>("1");
+  const [phase2Page, setPhase2Page] = useState<Phase2Page>("risk-engine");
 
-  const [disease, setDisease]         = useState<DiseaseType>("SARS-CoV-2");
-  const [variant, setVariant]         = useState<string>("wild-type");
-  const [variantList, setVariantList]       = useState<VariantInfo[]>([]);
-  const [mutations, setMutations]           = useState<Mutation[]>([]);
-  const [variantsLoading, setVariantsLoading]   = useState(false);
-  const [mutationsLoading, setMutationsLoading] = useState(false);
-  const [toasts, setToasts]           = useState<ToastMessage[]>([]);
+  const [disease, setDisease]                     = useState<DiseaseType>("SARS-CoV-2");
+  const [variant, setVariant]                     = useState<string>("wild-type");
+  const [variantList, setVariantList]             = useState<VariantInfo[]>([]);
+  const [mutations, setMutations]                 = useState<Mutation[]>([]);
+  const [variantsLoading, setVariantsLoading]     = useState(false);
+  const [mutationsLoading, setMutationsLoading]   = useState(false);
+  const [toasts, setToasts]                       = useState<ToastMessage[]>([]);
 
   const addToast = useCallback((message: string, type: ToastMessage["type"] = "info") => {
     setToasts(prev => [...prev, makeToast(message, type)]);
@@ -51,7 +53,7 @@ export default function App() {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  // ── Disease 변경: variant list 새로 fetch, variant/mutations 리셋 ──
+  // ── Disease 변경 ───────────────────────────────────────────────────────────
   useEffect(() => {
     setVariant("wild-type");
     setMutations([]);
@@ -64,12 +66,9 @@ export default function App() {
       .finally(() => setVariantsLoading(false));
   }, [disease, addToast]);
 
-  // ── Variant 변경: mutation 델타만 fetch ───────────────────────────────────
+  // ── Variant 변경 ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if (variant === "wild-type") {
-      setMutations([]);
-      return;
-    }
+    if (variant === "wild-type") { setMutations([]); return; }
     setMutationsLoading(true);
     fetch(`/api/v1/mutations?disease_type=${encodeURIComponent(disease)}&variant=${encodeURIComponent(variant)}`)
       .then(r => r.json())
@@ -101,79 +100,73 @@ export default function App() {
     setVariant(newVariant);
   };
 
-  const currentVariantLabel =
-    variantList.find(v => v.id === variant)?.label ?? variant;
+  const currentVariantLabel = variantList.find(v => v.id === variant)?.label ?? variant;
+
+  // ── 병원균/변이주 셀렉터 (Phase 1 · Phase 2 nav 공유) ─────────────────────
+  const renderDiseaseVariantSelectors = () => (
+    <div className="ml-auto flex items-center gap-4 py-1">
+      <div className="flex items-center gap-1.5">
+        <label className="text-xs font-semibold text-slate-400 whitespace-nowrap">병원균</label>
+        <select
+          value={disease}
+          onChange={e => handleDiseaseChange(e.target.value as DiseaseType)}
+          className="text-xs bg-white border border-slate-200 text-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
+        >
+          {DISEASES.map(d => (
+            <option key={d.id} value={d.id}>{d.label}</option>
+          ))}
+        </select>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <label className="text-xs font-semibold text-slate-400 whitespace-nowrap">변이주</label>
+        <select
+          value={variant}
+          onChange={e => handleVariantChange(e.target.value)}
+          disabled={variantsLoading || variantList.length === 0}
+          className="text-xs bg-white border border-slate-200 text-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer disabled:opacity-50"
+        >
+          {variantsLoading ? (
+            <option>로딩 중...</option>
+          ) : (
+            variantList.map(v => (
+              <option key={v.id} value={v.id}>
+                {v.label}
+                {v.who_label && v.who_label !== "Reference" ? ` · ${v.who_label}` : ""}
+              </option>
+            ))
+          )}
+        </select>
+        {mutationsLoading && (
+          <span className="w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin inline-block flex-shrink-0" />
+        )}
+        {!mutationsLoading && mutations.length > 0 && (
+          <span className="text-xs bg-red-500 text-white rounded-full px-2 py-0.5 font-bold leading-none flex-shrink-0">
+            {mutations.length} 변이
+          </span>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
 
-      {/* ── Header ─────────────────────────────────────────────────────── */}
+      {/* ── Header — Phase 전환 + 타이틀만 ────────────────────────────────── */}
       <header className="bg-gradient-to-r from-blue-800 to-blue-700 shadow-md">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-5">
 
-          {/* Title */}
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold tracking-wide text-white">OpenBioShield</h1>
             <p className="text-xs text-blue-200 mt-0.5">
               {phase === "1"
-                ? "AI 임상 R&D 통계 검증 플랫폼 · Phase 1"
+                ? "DNA 탐색 및 Primer 설계 · Phase 1"
                 : phase === "2"
-                ? "Genomic AI 훈련 데이터 수집 · Phase 2"
+                ? "통계 검증 · Risk Engine · Phase 2"
                 : "Assay Design Pipeline · Phase 3"}
             </p>
           </div>
 
-          {/* Disease selector */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold text-blue-300 whitespace-nowrap">병원균</label>
-            <select
-              value={disease}
-              onChange={e => handleDiseaseChange(e.target.value as DiseaseType)}
-              className="text-sm bg-blue-900/50 border border-blue-600/60 text-white rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
-            >
-              {DISEASES.map(d => (
-                <option key={d.id} value={d.id} className="bg-slate-800 text-white">{d.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Variant selector */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold text-blue-300 whitespace-nowrap">변이주</label>
-            <select
-              value={variant}
-              onChange={e => handleVariantChange(e.target.value)}
-              disabled={variantsLoading || variantList.length === 0}
-              className="text-sm bg-blue-900/50 border border-blue-600/60 text-white rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer disabled:opacity-50"
-            >
-              {variantsLoading ? (
-                <option>로딩 중...</option>
-              ) : (
-                variantList.map(v => (
-                  <option key={v.id} value={v.id} className="bg-slate-800 text-white">
-                    {v.label}
-                    {v.who_label && v.who_label !== "Reference" ? ` · ${v.who_label}` : ""}
-                  </option>
-                ))
-              )}
-            </select>
-
-            {mutationsLoading && (
-              <span className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin inline-block" />
-            )}
-            {!mutationsLoading && mutations.length > 0 && (
-              <span className="text-xs bg-red-500 text-white rounded-full px-2 py-0.5 font-bold leading-none">
-                {mutations.length} 변이
-              </span>
-            )}
-          </div>
-
-          {/* CLSI badge + Phase toggle */}
           <div className="flex items-center gap-3">
-            <span className="text-xs text-blue-100 font-mono bg-blue-900/40 border border-blue-600/50 px-2.5 py-1 rounded-md">
-              CLSI EP05-A3 · EP09-A3
-            </span>
-            {/* Phase toggle */}
             <div className="flex items-center gap-0.5 bg-blue-900/50 rounded-lg p-0.5 border border-blue-600/50">
               {(["1", "2", "3"] as Phase[]).map(p => (
                 <button
@@ -197,7 +190,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* ── Phase 1 Tab Nav ─────────────────────────────────────────────── */}
+      {/* ── Phase 1 Tab Nav (DNA 맵 · Primer 구조 + 병원균/변이주 셀렉터) ─── */}
       {phase === "1" && (
         <nav className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
           <div className="max-w-7xl mx-auto px-6 flex items-center gap-1">
@@ -218,15 +211,17 @@ export default function App() {
             })}
 
             {variant !== "wild-type" && (
-              <span className="ml-auto text-xs bg-red-50 border border-red-200 text-red-700 rounded-full px-3 py-1 font-semibold">
+              <span className="text-xs bg-red-50 border border-red-200 text-red-700 rounded-full px-3 py-1 font-semibold whitespace-nowrap">
                 {currentVariantLabel}
               </span>
             )}
+
+            {renderDiseaseVariantSelectors()}
           </div>
         </nav>
       )}
 
-      {/* ── Phase 2 Tab Nav ─────────────────────────────────────────────── */}
+      {/* ── Phase 2 Tab Nav (Risk Engine · 통계 검증 · Data Collection) ──── */}
       {phase === "2" && (
         <nav className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
           <div className="max-w-7xl mx-auto px-6 flex items-center gap-1">
@@ -245,30 +240,23 @@ export default function App() {
                 </button>
               );
             })}
-            {variant !== "wild-type" && (
-              <span className="ml-auto text-xs bg-red-50 border border-red-200 text-red-700 rounded-full px-3 py-1 font-semibold">
+
+            {variant !== "wild-type" && phase2Page !== "data-collection" && (
+              <span className="text-xs bg-red-50 border border-red-200 text-red-700 rounded-full px-3 py-1 font-semibold whitespace-nowrap">
                 {currentVariantLabel}
               </span>
             )}
+
+            {/* 병원균/변이주는 data-collection 페이지에선 불필요 */}
+            {phase2Page !== "data-collection" && renderDiseaseVariantSelectors()}
           </div>
         </nav>
       )}
 
-      {/* ── Main ───────────────────────────────────────────────────────── */}
+      {/* ── Main ───────────────────────────────────────────────────────────── */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8">
 
-        {/* Phase 1 content */}
-        {phase === "1" && activeTab === "validation" && (
-          <ClinicalValidationDashboard
-            disease={disease}
-            variant={variant}
-            variantLabel={currentVariantLabel}
-            mutations={mutations}
-            onVariantMismatchWarning={() =>
-              addToast("업로드된 파일이 현재 변이 컨텍스트와 다를 수 있습니다.", "warning")
-            }
-          />
-        )}
+        {/* Phase 1 — DNA 탐색 / Primer 구조 */}
         {phase === "1" && activeTab === "dna" && (
           <DnaSequenceView
             disease={disease}
@@ -285,7 +273,7 @@ export default function App() {
           />
         )}
 
-        {/* Phase 2 content */}
+        {/* Phase 2 — Risk Engine */}
         {phase === "2" && phase2Page === "risk-engine" && (
           <RiskEnginePage
             disease={disease}
@@ -293,25 +281,39 @@ export default function App() {
             mutations={mutations}
           />
         )}
+
+        {/* Phase 2 — 통계 검증 (EP05 · EP09) */}
+        {phase === "2" && phase2Page === "stat-validation" && (
+          <ClinicalValidationDashboard
+            disease={disease}
+            variant={variant}
+            variantLabel={currentVariantLabel}
+            mutations={mutations}
+            onVariantMismatchWarning={() =>
+              addToast("업로드된 파일이 현재 변이 컨텍스트와 다를 수 있습니다.", "warning")
+            }
+          />
+        )}
+
+        {/* Phase 2 — Data Collection */}
         {phase === "2" && phase2Page === "data-collection" && (
           <DataCollectionPage />
         )}
 
-        {/* Phase 3 content */}
+        {/* Phase 3 — Assay Design */}
         {phase === "3" && (
           <AssayDesignPage />
         )}
       </main>
 
-      {/* ── Footer ─────────────────────────────────────────────────────── */}
+      {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <footer className="border-t border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between text-xs text-slate-400">
           <span>OpenBioShield MVP · 통계 계산은 Python 엔진 전담 (Anti-Hallucination)</span>
-          <span className="font-mono">FastAPI · statsmodels · ViennaRNA · OpenAI · Supabase · Primer3</span>
+          <span className="font-mono">FastAPI · statsmodels · OpenAI · Supabase · Primer3</span>
         </div>
       </footer>
 
-      {/* ── Toast ──────────────────────────────────────────────────────── */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );

@@ -320,37 +320,36 @@ class CandidateAnalysisService:
 
             if probe_mode:
                 probe_seq = result.get(f"PRIMER_INTERNAL_{i}_SEQUENCE", "")
-                if not probe_seq:
-                    continue
-                probe_upper = probe_seq.upper()
+                if probe_seq:
+                    probe_upper = probe_seq.upper()
+                    # Rule 1: 5' G → fluorescence self-quenching
+                    # Rule 2: homopolymer run (≥4) inhibits hybridisation / signal
+                    probe_ok = (
+                        probe_upper[0] != "G"
+                        and "GGGG" not in probe_upper
+                        and "CCCC" not in probe_upper
+                    )
+                    if not probe_ok:
+                        logger.debug("[candidate] probe failed quality filter (pair %d): %s", i, probe_seq[:12])
+                    else:
+                        # Rule 3: probe centrality score (ideal = centre of amplicon)
+                        internal_pos = result.get(f"PRIMER_INTERNAL_{i}", (0, 0))
+                        left_pos     = result.get(f"PRIMER_LEFT_{i}",     (0, 0))
+                        right_pos    = result.get(f"PRIMER_RIGHT_{i}",    (0, 0))
+                        amp_start    = left_pos[0]
+                        amp_end      = right_pos[0] + right_pos[1]
+                        amp_len      = max(amp_end - amp_start, 1)
+                        probe_center = (internal_pos[0] + internal_pos[1] / 2) - amp_start
+                        amp_center   = amp_len / 2
+                        offset_pct   = abs(probe_center - amp_center) / amp_len
+                        # 100 at centre, 0 at > 40% offset from centre
+                        probe_center_score = max(0.0, round(100.0 - offset_pct * 250.0, 1))
 
-                # Rule 1: 5' G → fluorescence self-quenching
-                if probe_upper[0] == "G":
-                    logger.debug("[candidate] probe skip 5'G: %s", probe_seq[:12])
-                    continue
-
-                # Rule 2: homopolymer run (≥4) inhibits hybridisation / signal
-                if "GGGG" in probe_upper or "CCCC" in probe_upper:
-                    logger.debug("[candidate] probe skip homopolymer: %s", probe_seq[:12])
-                    continue
-
-                # Rule 3: probe centrality score (ideal = centre of amplicon)
-                internal_pos = result.get(f"PRIMER_INTERNAL_{i}", (0, 0))
-                left_pos     = result.get(f"PRIMER_LEFT_{i}",     (0, 0))
-                right_pos    = result.get(f"PRIMER_RIGHT_{i}",    (0, 0))
-                amp_start    = left_pos[0]
-                amp_end      = right_pos[0] + right_pos[1]
-                amp_len      = max(amp_end - amp_start, 1)
-                probe_center = (internal_pos[0] + internal_pos[1] / 2) - amp_start
-                amp_center   = amp_len / 2
-                offset_pct   = abs(probe_center - amp_center) / amp_len
-                # 100 at centre, 0 at > 40% offset from centre
-                probe_center_score = max(0.0, round(100.0 - offset_pct * 250.0, 1))
-
-                cand["probe"]              = probe_seq
-                cand["tm_probe"]           = round(result.get(f"PRIMER_INTERNAL_{i}_TM",         0.0), 2)
-                cand["gc_probe"]           = round(result.get(f"PRIMER_INTERNAL_{i}_GC_PERCENT",  0.0), 2)
-                cand["probe_center_score"] = probe_center_score
+                        cand["probe"]              = probe_seq
+                        cand["tm_probe"]           = round(result.get(f"PRIMER_INTERNAL_{i}_TM",        0.0), 2)
+                        cand["gc_probe"]           = round(result.get(f"PRIMER_INTERNAL_{i}_GC_PERCENT", 0.0), 2)
+                        cand["probe_center_score"] = probe_center_score
+                # Pair is always included even if no valid probe found
 
             candidates.append(cand)
         return candidates
