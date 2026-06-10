@@ -225,18 +225,29 @@ class CandidateAnalysisService:
             logger.warning("[candidate] primer3 unavailable — using rule-based fallback")
             return self._fallback_design(conserved_regions)
 
-        # Build tasks for each region
+        # Build tasks for each region (need >= 40 bp for primer3 to have room)
         tasks_input = []
         task_regions = []
+        skipped_short = 0
         for region in conserved_regions:
             seq = region.get("consensus_seq", "")
             if len(seq) < 40:
+                skipped_short += 1
                 continue
             tasks_input.append({
                 "seq_args":    {"SEQUENCE_ID": f"region_{region.get('start', 0)}", "SEQUENCE_TEMPLATE": seq},
                 "global_args": p3_global,
             })
             task_regions.append(region)
+
+        logger.info(
+            "[candidate] regions total=%d usable=%d skipped_short=%d",
+            len(conserved_regions), len(tasks_input), skipped_short,
+        )
+
+        if not tasks_input:
+            logger.warning("[candidate] all regions too short (<40bp) — falling back to rule-based design")
+            return self._fallback_design(conserved_regions)
 
         # On Windows: subprocess isolation (segfault in primer3 C ext kills the whole process)
         # On Linux/Mac: direct call in thread (safe, no segfault risk with Linux build)
@@ -256,9 +267,18 @@ class CandidateAnalysisService:
             all_candidates.extend(cands)
 
         logger.info(
-            "[candidate] %d primer pairs from %d regions (probe_mode=%s)",
-            len(all_candidates), len(conserved_regions), probe_mode,
+            "[candidate] primer3 returned %d candidates from %d tasks",
+            len(all_candidates), len(tasks_input),
         )
+
+        # If primer3 found nothing (params too strict for these sequences), fall back
+        if not all_candidates:
+            logger.warning(
+                "[candidate] primer3 returned 0 candidates — falling back to rule-based design "
+                "(explain: check PRIMER_LEFT_EXPLAIN in debug logs)"
+            )
+            return self._fallback_design(conserved_regions)
+
         return all_candidates
 
     # ── Public: gene-coordinate-based design ─────────────────────────────────
@@ -397,11 +417,12 @@ class CandidateAnalysisService:
         """Convert a primer3.design_primers() result dict into candidate dicts."""
         n = result.get("PRIMER_PAIR_NUM_RETURNED", 0)
         if n == 0:
-            logger.debug(
-                "[candidate] Primer3 0 pairs | region=%s explain_fwd=%s explain_pair=%s",
+            logger.info(
+                "[candidate] primer3 0 pairs | region=%s len=%d explain_fwd=%s explain_pair=%s",
                 region.get("start"),
-                result.get("PRIMER_LEFT_EXPLAIN", ""),
-                result.get("PRIMER_PAIR_EXPLAIN", ""),
+                len(region.get("consensus_seq", "")),
+                result.get("PRIMER_LEFT_EXPLAIN", "(none)"),
+                result.get("PRIMER_PAIR_EXPLAIN", "(none)"),
             )
         candidates = []
         for i in range(n):
