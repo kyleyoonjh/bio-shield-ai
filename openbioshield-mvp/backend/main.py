@@ -29,6 +29,7 @@ from services.stats_engine import (
 )
 from routers.v2 import router as v2_router
 from routers.assay import router as assay_router
+from routers.demo import router as demo_router, DEMO_MODE, _load as _demo_load
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,6 +54,10 @@ app.add_middleware(
 )
 app.include_router(v2_router)
 app.include_router(assay_router)
+app.include_router(demo_router)
+
+if DEMO_MODE:
+    logger.info("[startup] DEMO_MODE=true — serving mock data for Phase 1/2 APIs")
 
 
 
@@ -110,6 +115,12 @@ async def get_bio_context(
             status_code=400,
             detail=f"Unsupported disease_type '{disease_type}'. Valid: {SUPPORTED_DISEASES}",
         )
+    if DEMO_MODE:
+        from services.ncbi_service import DISEASE_TARGETS, _FALLBACK_SEQS, _build_response
+        config = DISEASE_TARGETS[disease_type]
+        context = _build_response(disease_type, config, _FALLBACK_SEQS[disease_type], source="demo")
+        logger.info("[bio-context] demo mode — serving fallback for %s", disease_type)
+        return context
     t0 = time.perf_counter()
     context = await fetch_bio_context(disease_type)
     logger.info("[bio-context] done in %.2fs  source=%s", time.perf_counter() - t0, context.get("source"))
@@ -212,6 +223,9 @@ async def analyze_ep05(
         raise HTTPException(status_code=400, detail="Empty file")
 
     logger.info("[ep05] filename=%s  schema=%s", file.filename, schema)
+    if DEMO_MODE:
+        logger.info("[ep05] demo mode — returning mock result")
+        return _demo_load("ep05_result.json")
     try:
         t0 = time.perf_counter()
         results = analyze_precision(file_bytes, schema, file.filename)
@@ -250,6 +264,9 @@ async def analyze_ep09(
         raise HTTPException(status_code=400, detail="Empty file")
 
     logger.info("[ep09] filename=%s  schema=%s", file.filename, schema)
+    if DEMO_MODE:
+        logger.info("[ep09] demo mode — returning mock result")
+        return _demo_load("ep09_result.json")
     try:
         t0 = time.perf_counter()
         results = analyze_method_comparison(file_bytes, schema, file.filename)
@@ -282,6 +299,13 @@ async def create_report(request: ReportRequest):
         raise HTTPException(status_code=400, detail="language must be 'ko' or 'en'")
 
     logger.info("[report] language=%s  stats_keys=%s", request.language, list(request.stats_data.keys()))
+    if DEMO_MODE:
+        reports = _demo_load("report_ko.json")
+        guideline = request.stats_data.get("target_column", "")
+        key = "ep09" if "reference_column" in request.stats_data or "pearson_r" in request.stats_data else "ep05"
+        demo_report = reports.get(key, reports["ep05"])
+        logger.info("[report] demo mode — returning mock %s report", key)
+        return {"language": request.language, "report_markdown": demo_report["report_markdown"]}
     try:
         t0 = time.perf_counter()
         report_md = generate_report(request.stats_data, request.language)

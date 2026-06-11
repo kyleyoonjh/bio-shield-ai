@@ -1,0 +1,22 @@
+{
+  "total_records": 1247,
+  "fine_tuning_threshold": 5000,
+  "readiness_percent": 24.9,
+  "is_ready": false,
+  "by_disease": {
+    "SARS-CoV-2": 689,
+    "HPV": 342,
+    "STI": 216
+  },
+  "by_risk": {
+    "HIGH": 184,
+    "MEDIUM": 421,
+    "LOW": 642
+  },
+  "by_guideline": {
+    "EP05": 731,
+    "EP09": 516
+  },
+  "recent_30d": 148,
+  "_status": "ok"
+}

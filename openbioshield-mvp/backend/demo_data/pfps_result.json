@@ -1,0 +1,11 @@
+{
+  "risk_level": "MEDIUM",
+  "score": 3,
+  "reason": "## PFPS 리스크 분석 보고서\n\n**대상**: SARS-CoV-2 RdRp 프라이머 (RdRp_Fwd) vs Delta BA.2 변이주\n\n### 위험 요인 분석\n\n**변이 탐지**: Delta 변이주에서 확인된 주요 변이 중 **P323L (nsp12, ORF1ab)** 이 프라이머 결합 영역에서 **12 bp** 거리에 위치합니다. 이는 Warning Zone (4–15 bp) 에 해당하여 **+3점** 이 부과됩니다.\n\n**재현성**: 보고된 재현성 CV = **4.2%** 는 허용 기준 (≤10%) 내에 있어 CV 에스컬레이션은 발생하지 않았습니다.\n\n### 종합 평가\n\n| 항목 | 값 | 판정 |\n|------|-----|------|\n| 총 점수 | 3점 | ⚠️ MEDIUM |\n| Critical Override | 없음 | ✓ |\n| CV 에스컬레이션 | 없음 | ✓ |\n| 3' 말단 Critical Zone (0–3 bp) | 해당 없음 | ✓ |\n\n### 권고사항\n\n이 수준의 위험도에서는 **추가 모니터링**이 권고됩니다. 구체적으로:\n1. Omicron 하위 계통 포함 추가 변이주 시퀀싱 데이터로 교차 검증 실시\n2. 재현성 CV를 5% 이하로 유지하는 SOP 준수 확인\n3. 다음 정기 검증 주기에 EP05 정밀도 재측정 포함\n\n> ⚠️ 이 위험도 판정은 결정론적 규칙 엔진(Layer 1)에 의해 산출된 결과입니다. GPT-4o는 해석 보조 역할만 수행하며 위험도 등급을 변경하지 않습니다.",
+  "meta_metrics": {
+    "is_critical_override": false,
+    "cv_escalated": false,
+    "trigger_rule_summary": "Delta P323L mutation at nsp12 position 14408: 12 bp from primer 3' end (Warning Zone → +3 score). Score=3 → MEDIUM."
+  },
+  "_demo": true
+}

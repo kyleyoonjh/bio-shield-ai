@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Assay Design Report — 3fcc9cd3-cccc-4455-8602-d60dbf2faf15</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;color:#1e293b;background:#f8fafc;padding:32px}
+    header{background:#0f172a;color:#f1f5f9;padding:24px 32px;border-radius:12px;margin-bottom:28px}
+    header h1{font-size:22px;font-weight:700;letter-spacing:.5px}
+    header .meta{margin-top:8px;opacity:.7;font-size:12px}
+    .section{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px 24px;margin-bottom:20px}
+    .section h2{font-size:14px;font-weight:700;color:#334155;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #f1f5f9}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{background:#f1f5f9;color:#475569;font-weight:600;padding:8px 10px;text-align:left;white-space:nowrap}
+    td{padding:7px 10px;border-bottom:1px solid #f8fafc;vertical-align:top}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#f8fafc}
+    .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
+    .badge-green{background:#dcfce7;color:#166534}
+    .badge-yellow{background:#fef9c3;color:#854d0e}
+    .badge-red{background:#fee2e2;color:#991b1b}
+    .score-bar{display:flex;align-items:center;gap:6px}
+    .bar{height:8px;border-radius:4px;background:#3b82f6;min-width:2px}
+    .num{color:#64748b;width:36px;text-align:right;font-size:11px}
+    .seq{font-family:'Courier New',monospace;font-size:11px;color:#0f172a;word-break:break-all}
+    .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+    .kpi{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;text-align:center}
+    .kpi .val{font-size:24px;font-weight:700;color:#0f172a;margin-bottom:2px}
+    .kpi .lbl{font-size:11px;color:#64748b}
+    footer{text-align:center;font-size:11px;color:#94a3b8;margin-top:24px}
+  </style>
+</head>
+<body>
+<header>
+  <h1>OpenBioShield — Assay Design Report</h1>
+  <div class="meta">
+    Assay ID: <strong>3fcc9cd3-cccc-4455-8602-d60dbf2faf15</strong> &nbsp;|&nbsp;
+    Generated: 2026-06-10T09:21:47.831603Z &nbsp;|&nbsp;
+    Candidates evaluated: 15
+  </div>
+</header>
+
+<div class="section">
+  <h2>Summary</h2>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="val">15</div><div class="lbl">Total Candidates</div></div>
+    <div class="kpi"><div class="val">10</div><div class="lbl">Top Ranked</div></div>
+    <div class="kpi"><div class="val">85.8</div><div class="lbl">Best Score (0–100)</div></div>
+    <div class="kpi"><div class="val">63.8°C</div><div class="lbl">Best Primer Tm</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Top Primer Candidates</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Forward (5'→3')</th>
+        <th>Probe (5'→3')</th>
+        <th>Reverse (5'→3')</th>
+        <th>Tm F</th>
+        <th>Tm P</th>
+        <th>Tm R</th>
+        <th>GC F</th>
+        <th>GC R</th>
+        <th>Product</th>
+        <th>중앙도</th>
+        <th>Coverage</th>
+        <th>Thermo</th>
+        <th>AI</th>
+        <th>Final Score</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    
+      <tr>
+        <td><strong>1</strong></td>
+        <td><span class="seq">ACTCGTCTATCTTCTGCAGGCT</span></td>
+        
+        <td><span class="seq" style="color:#b45309">CGTCCGTGTTGCAGCCGATCATCAGCA</span></td>
+        
+        <td><span class="seq">AACCAGGGACAAGGCTCTCC</span></td>
+        <td>63.8°C</td>
+        
+        <td>73.5°C</td>
+        
+        <td>64.5°C</td>
+        <td>50.0%</td>
+        <td>60.0%</td>
+        <td>118 bp</td>
+        
+        <td>74</td>
+        
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:60.0px"></div>
+            <span class="num">100%</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:37.6px"></div>
+            <span class="num">63</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:39.9px"></div>
+            <span class="num">67</span>
+          </div>
+        </td>
+        <td><strong>85.8</strong></td>
+        <td>
+          
+            <span class="badge badge-yellow" title="Fwd Tm deviation 3.7°C; Rev Tm deviation 4.5°C; Fwd self-dimer ΔG -6.9; Probe Tm dev 4.5°C">Warn</span>
+          
+        </td>
+      </tr>
+    
+      <tr>
+        <td><strong>2</strong></td>
+        <td><span class="seq">ACTCGTCTATCTTCTGCAGGCTG</span></td>
+        
+        <td><span class="seq" style="color:#b45309">CGTCCGTGTTGCAGCCGATCATCAGCA</span></td>
+        
+        <td><span class="seq">AACCAGGGACAAGGCTCTCC</span></td>
+        <td>64.7°C</td>
+        
+        <td>73.5°C</td>
+        
+        <td>64.5°C</td>
+        <td>52.2%</td>
+        <td>60.0%</td>
+        <td>118 bp</td>
+        
+        <td>74</td>
+        
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:60.0px"></div>
+            <span class="num">100%</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:32.9px"></div>
+            <span class="num">55</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:41.1px"></div>
+            <span class="num">68</span>
+          </div>
+        </td>
+        <td><strong>84.6</strong></td>
+        <td>
+          
+            <span class="badge badge-yellow" title="Fwd Tm deviation 4.7°C; Rev Tm deviation 4.5°C; Fwd self-dimer ΔG -6.9; Probe Tm dev 4.5°C">Warn</span>
+          
+        </td>
+      </tr>
+    
+      <tr>
+        <td><strong>3</strong></td>
+        <td><span class="seq">ACTCGTCTATCTTCTGCAGGC</span></td>
+        
+        <td><span class="seq" style="color:#b45309">CGTCCGTGTTGCAGCCGATCATCAGCA</span></td>
+        
+        <td><span class="seq">CCAAAGCCACGTACGAGCAC</span></td>
+        <td>62.4°C</td>
+        
+        <td>73.5°C</td>
+        
+        <td>64.8°C</td>
+        <td>52.4%</td>
+        <td>60.0%</td>
+        <td>191 bp</td>
+        
+        <td>36</td>
+        
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:60.0px"></div>
+            <span class="num">100%</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:33.1px"></div>
+            <span class="num">55</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:37.2px"></div>
+            <span class="num">62</span>
+          </div>
+        </td>
+        <td><strong>83.4</strong></td>
+        <td>
+          
+            <span class="badge badge-yellow" title="Rev Tm deviation 4.8°C; Tm delta 2.3°C; Fwd self-dimer ΔG -6.9; Rev self-dimer ΔG -8.1; Probe Tm dev 4.5°C">Warn</span>
+          
+        </td>
+      </tr>
+    
+      <tr>
+        <td><strong>4</strong></td>
+        <td><span class="seq">TCGTCTATCTTCTGCAGGCTG</span></td>
+        
+        <td><span class="seq" style="color:#b45309">CGTCCGTGTTGCAGCCGATCATCAGCA</span></td>
+        
+        <td><span class="seq">CCAAAGCCACGTACGAGCAC</span></td>
+        <td>62.4°C</td>
+        
+        <td>73.5°C</td>
+        
+        <td>64.8°C</td>
+        <td>52.4%</td>
+        <td>60.0%</td>
+        <td>189 bp</td>
+        
+        <td>34</td>
+        
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:60.0px"></div>
+            <span class="num">100%</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:33.1px"></div>
+            <span class="num">55</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:37.1px"></div>
+            <span class="num">62</span>
+          </div>
+        </td>
+        <td><strong>83.4</strong></td>
+        <td>
+          
+            <span class="badge badge-yellow" title="Rev Tm deviation 4.8°C; Tm delta 2.3°C; Fwd self-dimer ΔG -6.9; Rev self-dimer ΔG -8.1; Probe Tm dev 4.5°C">Warn</span>
+          
+        </td>
+      </tr>
+    
+      <tr>
+        <td><strong>5</strong></td>
+        <td><span class="seq">ACTCGTCTATCTTCTGCAGGCT</span></td>
+        
+        <td><span class="seq" style="color:#b45309">CGTCCGTGTTGCAGCCGATCATCAGCA</span></td>
+        
+        <td><span class="seq">CCAAAGCCACGTACGAGCAC</span></td>
+        <td>63.8°C</td>
+        
+        <td>73.5°C</td>
+        
+        <td>64.8°C</td>
+        <td>50.0%</td>
+        <td>60.0%</td>
+        <td>191 bp</td>
+        
+        <td>36</td>
+        
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:60.0px"></div>
+            <span class="num">100%</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:30.5px"></div>
+            <span class="num">51</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:39.5px"></div>
+            <span class="num">66</span>
+          </div>
+        </td>
+        <td><strong>83.3</strong></td>
+        <td>
+          
+            <span class="badge badge-yellow" title="Fwd Tm deviation 3.7°C; Rev Tm deviation 4.8°C; Fwd self-dimer ΔG -6.9; Rev self-dimer ΔG -8.1; Probe Tm dev 4.5°C">Warn</span>
+          
+        </td>
+      </tr>
+    
+      <tr>
+        <td><strong>6</strong></td>
+        <td><span class="seq">CTCGTCTATCTTCTGCAGGCTG</span></td>
+        
+        <td><span class="seq" style="color:#b45309">CGTCCGTGTTGCAGCCGATCATCAGCA</span></td>
+        
+        <td><span class="seq">TCCAAAGCCACGTACGAGCA</span></td>
+        <td>63.3°C</td>
+        
+        <td>73.5°C</td>
+        
+        <td>65.0°C</td>
+        <td>54.5%</td>
+        <td>55.0%</td>
+        <td>191 bp</td>
+        
+        <td>35</td>
+        
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:60.0px"></div>
+            <span class="num">100%</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:31.4px"></div>
+            <span class="num">52</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:38.1px"></div>
+            <span class="num">64</span>
+          </div>
+        </td>
+        <td><strong>83.2</strong></td>
+        <td>
+          
+            <span class="badge badge-yellow" title="Fwd Tm deviation 3.3°C; Rev Tm deviation 5.0°C; Fwd self-dimer ΔG -6.9; Rev self-dimer ΔG -8.1; Probe Tm dev 4.5°C">Warn</span>
+          
+        </td>
+      </tr>
+    
+      <tr>
+        <td><strong>7</strong></td>
+        <td><span class="seq">ACTCGTCTATCTTCTGCAGGCT</span></td>
+        
+        <td><span class="seq" style="color:#b45309">CGTCCGTGTTGCAGCCGATCATCAGCA</span></td>
+        
+        <td><span class="seq">TCCAAAGCCACGTACGAGCA</span></td>
+        <td>63.8°C</td>
+        
+        <td>73.5°C</td>
+        
+        <td>65.0°C</td>
+        <td>50.0%</td>
+        <td>55.0%</td>
+        <td>192 bp</td>
+        
+        <td>36</td>
+        
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:60.0px"></div>
+            <span class="num">100%</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:29.1px"></div>
+            <span class="num">49</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:39.1px"></div>
+            <span class="num">65</span>
+          </div>
+        </td>
+        <td><strong>82.7</strong></td>
+        <td>
+          
+            <span class="badge badge-yellow" title="Fwd Tm deviation 3.7°C; Rev Tm deviation 5.0°C; Fwd self-dimer ΔG -6.9; Rev self-dimer ΔG -8.1; Probe Tm dev 4.5°C">Warn</span>
+          
+        </td>
+      </tr>
+    
+      <tr>
+        <td><strong>8</strong></td>
+        <td><span class="seq">ACTCGTCTATCTTCTGCAGGCT</span></td>
+        
+        <td><span class="seq" style="color:#b45309">CGTCCGTGTTGCAGCCGATCATCAGCA</span></td>
+        
+        <td><span class="seq">GCACGTCGCGAACCTGTAAA</span></td>
+        <td>63.8°C</td>
+        
+        <td>73.5°C</td>
+        
+        <td>64.4°C</td>
+        <td>50.0%</td>
+        <td>55.0%</td>
+        <td>175 bp</td>
+        
+        <td>41</td>
+        
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:60.0px"></div>
+            <span class="num">100%</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:32.2px"></div>
+            <span class="num">54</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:35.5px"></div>
+            <span class="num">59</span>
+          </div>
+        </td>
+        <td><strong>82.6</strong></td>
+        <td>
+          
+            <span class="badge badge-yellow" title="Fwd Tm deviation 3.7°C; Rev Tm deviation 4.4°C; Fwd self-dimer ΔG -6.9; Rev self-dimer ΔG -7.2; Probe Tm dev 4.5°C">Warn</span>
+          
+        </td>
+      </tr>
+    
+      <tr>
+        <td><strong>9</strong></td>
+        <td><span class="seq">ACTCGTCTATCTTCTGCAGGC</span></td>
+        
+        <td><span class="seq" style="color:#b45309">CGTCCGTGTTGCAGCCGATCATCAGCA</span></td>
+        
+        <td><span class="seq">TCCAAAGCCACGTACGAGCA</span></td>
+        <td>62.4°C</td>
+        
+        <td>73.5°C</td>
+        
+        <td>65.0°C</td>
+        <td>52.4%</td>
+        <td>55.0%</td>
+        <td>192 bp</td>
+        
+        <td>36</td>
+        
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:60.0px"></div>
+            <span class="num">100%</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:30.9px"></div>
+            <span class="num">51</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:36.8px"></div>
+            <span class="num">61</span>
+          </div>
+        </td>
+        <td><strong>82.6</strong></td>
+        <td>
+          
+            <span class="badge badge-yellow" title="Rev Tm deviation 5.0°C; Tm delta 2.6°C; Fwd self-dimer ΔG -6.9; Rev self-dimer ΔG -8.1; Probe Tm dev 4.5°C">Warn</span>
+          
+        </td>
+      </tr>
+    
+      <tr>
+        <td><strong>10</strong></td>
+        <td><span class="seq">TCGTCTATCTTCTGCAGGCTG</span></td>
+        
+        <td><span class="seq" style="color:#b45309">CGTCCGTGTTGCAGCCGATCATCAGCA</span></td>
+        
+        <td><span class="seq">TCCAAAGCCACGTACGAGCA</span></td>
+        <td>62.4°C</td>
+        
+        <td>73.5°C</td>
+        
+        <td>65.0°C</td>
+        <td>52.4%</td>
+        <td>55.0%</td>
+        <td>190 bp</td>
+        
+        <td>34</td>
+        
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:60.0px"></div>
+            <span class="num">100%</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:30.9px"></div>
+            <span class="num">51</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-bar">
+            <div class="bar" style="width:36.7px"></div>
+            <span class="num">61</span>
+          </div>
+        </td>
+        <td><strong>82.5</strong></td>
+        <td>
+          
+            <span class="badge badge-yellow" title="Rev Tm deviation 5.0°C; Tm delta 2.6°C; Fwd self-dimer ΔG -6.9; Rev self-dimer ΔG -8.1; Probe Tm dev 4.5°C">Warn</span>
+          
+        </td>
+      </tr>
+    
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Score Weights</h2>
+  <table style="max-width:320px">
+    <tr><th>Component</th><th>Weight</th></tr>
+    <tr><td>Coverage Score</td><td>60%</td></tr>
+    <tr><td>Thermodynamic Score</td><td>20%</td></tr>
+    <tr><td>AI Efficiency Score</td><td>20%</td></tr>
+  </table>
+</div>
+
+<footer>OpenBioShield MVP &mdash; Generated 2026-06-10T09:21:47.831603Z</footer>
+</body>
+</html>

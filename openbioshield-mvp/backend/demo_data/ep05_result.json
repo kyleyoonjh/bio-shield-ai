@@ -1,0 +1,37 @@
+{
+  "anova": {
+    "f_value": 12.482,
+    "p_value": 0.000034
+  },
+  "repeatability": {
+    "sd": 0.226,
+    "cv_percent": 0.7951
+  },
+  "reproducibility": {
+    "sd": 0.389,
+    "cv_percent": 1.3682
+  },
+  "variance_components": {
+    "within_group": 58.412,
+    "between_group": 12.847,
+    "within_group_percent": 81.98,
+    "between_group_percent": 18.02
+  },
+  "grand_mean": 28.4012,
+  "sample_count": 120,
+  "groups": [
+    {"group": "Day1|Inst-A", "mean": 28.12, "sd": 0.21, "n": 12, "cv_percent": 0.75},
+    {"group": "Day1|Inst-B", "mean": 28.38, "sd": 0.24, "n": 12, "cv_percent": 0.85},
+    {"group": "Day2|Inst-A", "mean": 28.19, "sd": 0.19, "n": 12, "cv_percent": 0.67},
+    {"group": "Day2|Inst-B", "mean": 28.45, "sd": 0.22, "n": 12, "cv_percent": 0.78},
+    {"group": "Day3|Inst-A", "mean": 28.08, "sd": 0.23, "n": 12, "cv_percent": 0.82},
+    {"group": "Day3|Inst-B", "mean": 28.52, "sd": 0.25, "n": 12, "cv_percent": 0.88},
+    {"group": "Day4|Inst-A", "mean": 28.15, "sd": 0.20, "n": 12, "cv_percent": 0.71},
+    {"group": "Day4|Inst-B", "mean": 28.41, "sd": 0.23, "n": 12, "cv_percent": 0.81},
+    {"group": "Day5|Inst-A", "mean": 28.22, "sd": 0.22, "n": 12, "cv_percent": 0.78},
+    {"group": "Day5|Inst-B", "mean": 28.35, "sd": 0.24, "n": 12, "cv_percent": 0.85}
+  ],
+  "target_column": "CT_Value",
+  "group_columns": ["Day", "Instrument"],
+  "_demo": true
+}

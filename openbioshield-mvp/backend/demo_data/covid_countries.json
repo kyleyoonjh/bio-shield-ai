@@ -1,0 +1,142 @@
+[
+  {
+    "country": "USA",
+    "countryInfo": {"iso2": "US", "iso3": "USA", "flag": "https://disease.sh/assets/img/flags/us.png", "lat": 38.0, "long": -97.0},
+    "cases": 103436829, "deaths": 1127152, "recovered": 100817870, "active": 1491807,
+    "todayCases": 2341, "todayDeaths": 12, "population": 334805269,
+    "casesPerOneMillion": 308925, "deathsPerOneMillion": 3366
+  },
+  {
+    "country": "India",
+    "countryInfo": {"iso2": "IN", "iso3": "IND", "flag": "https://disease.sh/assets/img/flags/in.png", "lat": 20.0, "long": 77.0},
+    "cases": 44694603, "deaths": 530779, "recovered": 44161687, "active": 2137,
+    "todayCases": 421, "todayDeaths": 2, "population": 1428627663,
+    "casesPerOneMillion": 31293, "deathsPerOneMillion": 372
+  },
+  {
+    "country": "France",
+    "countryInfo": {"iso2": "FR", "iso3": "FRA", "flag": "https://disease.sh/assets/img/flags/fr.png", "lat": 46.0, "long": 2.0},
+    "cases": 38997490, "deaths": 167985, "recovered": 38737022, "active": 92483,
+    "todayCases": 1823, "todayDeaths": 8, "population": 68042591,
+    "casesPerOneMillion": 573121, "deathsPerOneMillion": 2469
+  },
+  {
+    "country": "Germany",
+    "countryInfo": {"iso2": "DE", "iso3": "DEU", "flag": "https://disease.sh/assets/img/flags/de.png", "lat": 51.5, "long": 10.5},
+    "cases": 38437756, "deaths": 174979, "recovered": 38204253, "active": 58524,
+    "todayCases": 987, "todayDeaths": 5, "population": 83294633,
+    "casesPerOneMillion": 461466, "deathsPerOneMillion": 2100
+  },
+  {
+    "country": "Brazil",
+    "countryInfo": {"iso2": "BR", "iso3": "BRA", "flag": "https://disease.sh/assets/img/flags/br.png", "lat": -10.0, "long": -55.0},
+    "cases": 37519960, "deaths": 702421, "recovered": 36760018, "active": 57521,
+    "todayCases": 654, "todayDeaths": 3, "population": 215313498,
+    "casesPerOneMillion": 174247, "deathsPerOneMillion": 3263
+  },
+  {
+    "country": "South Korea",
+    "countryInfo": {"iso2": "KR", "iso3": "KOR", "flag": "https://disease.sh/assets/img/flags/kr.png", "lat": 36.5, "long": 127.5},
+    "cases": 34571873, "deaths": 35934, "recovered": 34527841, "active": 8098,
+    "todayCases": 3281, "todayDeaths": 7, "population": 51744876,
+    "casesPerOneMillion": 668068, "deathsPerOneMillion": 695
+  },
+  {
+    "country": "UK",
+    "countryInfo": {"iso2": "GB", "iso3": "GBR", "flag": "https://disease.sh/assets/img/flags/gb.png", "lat": 54.0, "long": -2.0},
+    "cases": 24656663, "deaths": 227714, "recovered": 24413012, "active": 15937,
+    "todayCases": 712, "todayDeaths": 4, "population": 67886011,
+    "casesPerOneMillion": 363212, "deathsPerOneMillion": 3355
+  },
+  {
+    "country": "Italy",
+    "countryInfo": {"iso2": "IT", "iso3": "ITA", "flag": "https://disease.sh/assets/img/flags/it.png", "lat": 42.83, "long": 12.83},
+    "cases": 26723249, "deaths": 194576, "recovered": 26504248, "active": 24425,
+    "todayCases": 531, "todayDeaths": 3, "population": 60262770,
+    "casesPerOneMillion": 443558, "deathsPerOneMillion": 3229
+  },
+  {
+    "country": "Japan",
+    "countryInfo": {"iso2": "JP", "iso3": "JPN", "flag": "https://disease.sh/assets/img/flags/jp.png", "lat": 36.2, "long": 138.25},
+    "cases": 33803572, "deaths": 74694, "recovered": 33702879, "active": 25999,
+    "todayCases": 8923, "todayDeaths": 18, "population": 123951692,
+    "casesPerOneMillion": 272715, "deathsPerOneMillion": 602
+  },
+  {
+    "country": "Russia",
+    "countryInfo": {"iso2": "RU", "iso3": "RUS", "flag": "https://disease.sh/assets/img/flags/ru.png", "lat": 60.0, "long": 100.0},
+    "cases": 22892918, "deaths": 399417, "recovered": 22488901, "active": 4600,
+    "todayCases": 213, "todayDeaths": 1, "population": 144444359,
+    "casesPerOneMillion": 158489, "deathsPerOneMillion": 2766
+  },
+  {
+    "country": "Australia",
+    "countryInfo": {"iso2": "AU", "iso3": "AUS", "flag": "https://disease.sh/assets/img/flags/au.png", "lat": -27.0, "long": 133.0},
+    "cases": 11765996, "deaths": 22382, "recovered": 11737024, "active": 6590,
+    "todayCases": 843, "todayDeaths": 2, "population": 26177413,
+    "casesPerOneMillion": 449489, "deathsPerOneMillion": 855
+  },
+  {
+    "country": "Spain",
+    "countryInfo": {"iso2": "ES", "iso3": "ESP", "flag": "https://disease.sh/assets/img/flags/es.png", "lat": 40.0, "long": -4.0},
+    "cases": 13924369, "deaths": 121760, "recovered": 13793210, "active": 9399,
+    "todayCases": 389, "todayDeaths": 2, "population": 47415750,
+    "casesPerOneMillion": 293726, "deathsPerOneMillion": 2568
+  },
+  {
+    "country": "China",
+    "countryInfo": {"iso2": "CN", "iso3": "CHN", "flag": "https://disease.sh/assets/img/flags/cn.png", "lat": 35.86, "long": 104.19},
+    "cases": 99374023, "deaths": 122171, "recovered": 99247293, "active": 4559,
+    "todayCases": 0, "todayDeaths": 0, "population": 1425143500,
+    "casesPerOneMillion": 69731, "deathsPerOneMillion": 86
+  },
+  {
+    "country": "Netherlands",
+    "countryInfo": {"iso2": "NL", "iso3": "NLD", "flag": "https://disease.sh/assets/img/flags/nl.png", "lat": 52.5, "long": 5.75},
+    "cases": 8695451, "deaths": 23076, "recovered": 8665812, "active": 6563,
+    "todayCases": 312, "todayDeaths": 1, "population": 17590672,
+    "casesPerOneMillion": 494339, "deathsPerOneMillion": 1312
+  },
+  {
+    "country": "Canada",
+    "countryInfo": {"iso2": "CA", "iso3": "CAN", "flag": "https://disease.sh/assets/img/flags/ca.png", "lat": 60.0, "long": -95.0},
+    "cases": 4673474, "deaths": 53925, "recovered": 4613452, "active": 6097,
+    "todayCases": 241, "todayDeaths": 1, "population": 38781292,
+    "casesPerOneMillion": 120505, "deathsPerOneMillion": 1390
+  },
+  {
+    "country": "Mexico",
+    "countryInfo": {"iso2": "MX", "iso3": "MEX", "flag": "https://disease.sh/assets/img/flags/mx.png", "lat": 23.63, "long": -102.55},
+    "cases": 7633355, "deaths": 334336, "recovered": 7295289, "active": 3730,
+    "todayCases": 187, "todayDeaths": 2, "population": 128455567,
+    "casesPerOneMillion": 59433, "deathsPerOneMillion": 2603
+  },
+  {
+    "country": "Argentina",
+    "countryInfo": {"iso2": "AR", "iso3": "ARG", "flag": "https://disease.sh/assets/img/flags/ar.png", "lat": -38.42, "long": -63.62},
+    "cases": 10044957, "deaths": 130542, "recovered": 9912673, "active": 1742,
+    "todayCases": 98, "todayDeaths": 0, "population": 45773884,
+    "casesPerOneMillion": 219465, "deathsPerOneMillion": 2853
+  },
+  {
+    "country": "Turkey",
+    "countryInfo": {"iso2": "TR", "iso3": "TUR", "flag": "https://disease.sh/assets/img/flags/tr.png", "lat": 39.06, "long": 35.24},
+    "cases": 17208272, "deaths": 101672, "recovered": 17104773, "active": 1827,
+    "todayCases": 143, "todayDeaths": 1, "population": 85341241,
+    "casesPerOneMillion": 201668, "deathsPerOneMillion": 1191
+  },
+  {
+    "country": "Indonesia",
+    "countryInfo": {"iso2": "ID", "iso3": "IDN", "flag": "https://disease.sh/assets/img/flags/id.png", "lat": -0.79, "long": 113.92},
+    "cases": 6819770, "deaths": 161987, "recovered": 6657193, "active": 590,
+    "todayCases": 0, "todayDeaths": 0, "population": 277534122,
+    "casesPerOneMillion": 24573, "deathsPerOneMillion": 584
+  },
+  {
+    "country": "Poland",
+    "countryInfo": {"iso2": "PL", "iso3": "POL", "flag": "https://disease.sh/assets/img/flags/pl.png", "lat": 51.92, "long": 19.15},
+    "cases": 6524117, "deaths": 119619, "recovered": 6403219, "active": 1279,
+    "todayCases": 167, "todayDeaths": 1, "population": 39857145,
+    "casesPerOneMillion": 163692, "deathsPerOneMillion": 3000
+  }
+]

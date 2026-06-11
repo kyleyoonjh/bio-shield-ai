@@ -1,10 +1,36 @@
-// COVID-19 data service — disease.sh REST API
+// COVID-19 data service — disease.sh REST API (demo mode: /api/demo/*)
 
 const BASE = 'https://disease.sh/v3/covid-19';
+
+// Cached demo mode flag — set by checkDemoMode() called from App on startup
+let _demoMode: boolean | null = null;
+
+export async function checkDemoMode(): Promise<boolean> {
+  if (_demoMode !== null) return _demoMode;
+  try {
+    const res = await fetch('/api/demo/mode');
+    if (!res.ok) { _demoMode = false; return false; }
+    const data = await res.json() as { demo_mode: boolean };
+    _demoMode = data.demo_mode;
+  } catch {
+    _demoMode = false;
+  }
+  return _demoMode;
+}
+
+export function isDemoMode(): boolean {
+  return _demoMode === true;
+}
 
 const get = async <T>(path: string): Promise<T> => {
   const res = await fetch(`${BASE}${path}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${path}`);
+  return res.json();
+};
+
+const getDemoProxy = async <T>(path: string): Promise<T> => {
+  const res = await fetch(`/api/demo${path}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}: demo${path}`);
   return res.json();
 };
 
@@ -41,11 +67,18 @@ export interface HistoricalTimeline {
   recovered: Record<string, number>;
 }
 
-export const fetchGlobal = () => get<GlobalStats>('/all');
-export const fetchCountries = () => get<CountryData[]>('/countries?sort=cases');
-export const fetchGlobalHistory = (days = 180) =>
-  get<HistoricalTimeline>(`/historical/all?lastdays=${days}`);
-export const fetchCountryHistory = (country: string, days = 180) =>
+export const fetchGlobal = (): Promise<GlobalStats> =>
+  _demoMode ? getDemoProxy<GlobalStats>('/covid-global') : get<GlobalStats>('/all');
+
+export const fetchCountries = (): Promise<CountryData[]> =>
+  _demoMode ? getDemoProxy<CountryData[]>('/covid-countries') : get<CountryData[]>('/countries?sort=cases');
+
+export const fetchGlobalHistory = (days = 180): Promise<HistoricalTimeline> =>
+  _demoMode
+    ? getDemoProxy<HistoricalTimeline>('/covid-historical')
+    : get<HistoricalTimeline>(`/historical/all?lastdays=${days}`);
+
+export const fetchCountryHistory = (country: string, days = 180): Promise<{ country: string; timeline: HistoricalTimeline }> =>
   get<{ country: string; timeline: HistoricalTimeline }>(
     `/historical/${encodeURIComponent(country)}?lastdays=${days}`
   );

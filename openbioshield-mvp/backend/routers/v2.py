@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+DEMO_MODE: bool = os.getenv("DEMO_MODE", "false").lower() == "true"
 
 from services.ncbi_service import fetch_bio_context
 from services.risk_engine import calculate_risk
@@ -210,6 +213,11 @@ async def pfps_risk(request: PfpsRequest) -> dict[str, Any]:
 
     GPT-4o NEVER changes risk_level or score — it is a narrator, not a decision maker.
     """
+    if DEMO_MODE:
+        from routers.demo import _load as _demo_load
+        logger.info("[pfps] demo mode — returning mock result")
+        return _demo_load("pfps_result.json")
+
     mutations_list = [m.model_dump() for m in request.mutations]
 
     loop = asyncio.get_running_loop()
@@ -307,6 +315,10 @@ async def setup_tables() -> dict[str, str]:
 @router.get("/dataset/stats")
 async def dataset_stats() -> dict[str, Any]:
     """Return aggregated dataset statistics for the Data Collection dashboard."""
+    if DEMO_MODE:
+        from routers.demo import _load as _demo_load
+        logger.info("[v2/dataset/stats] demo mode — returning mock stats")
+        return _demo_load("dataset_stats.json")
     loop = asyncio.get_running_loop()
     try:
         return await loop.run_in_executor(None, get_dataset_stats)

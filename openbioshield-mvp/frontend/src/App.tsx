@@ -6,7 +6,9 @@ import RiskEnginePage from "./components/RiskEnginePage";
 import DataCollectionPage from "./components/DataCollectionPage";
 import AssayDesignPage from "./components/AssayDesignPage";
 import CovidDashboard from "./components/covid/CovidDashboard";
+import DemoBanner from "./components/DemoBanner";
 import { ToastContainer, makeToast } from "./components/Toast";
+import { checkDemoMode } from "./services/covidService";
 import type { ToastMessage } from "./components/Toast";
 import type { DiseaseType, VariantInfo, Mutation } from "./types";
 
@@ -38,6 +40,7 @@ export default function App() {
   const [activeTab, setActiveTab]   = useState<Tab>("covid");
   const [phase, setPhase]           = useState<Phase>("1");
   const [phase2Page, setPhase2Page] = useState<Phase2Page>("stat-validation");
+  const [demoMode, setDemoMode]     = useState(false);
 
   const [disease, setDisease]                     = useState<DiseaseType>("SARS-CoV-2");
   const [variant, setVariant]                     = useState<string>("wild-type");
@@ -46,6 +49,11 @@ export default function App() {
   const [variantsLoading, setVariantsLoading]     = useState(false);
   const [mutationsLoading, setMutationsLoading]   = useState(false);
   const [toasts, setToasts]                       = useState<ToastMessage[]>([]);
+
+  // Check demo mode once on startup before any other data fetching
+  useEffect(() => {
+    checkDemoMode().then(on => setDemoMode(on));
+  }, []);
 
   const addToast = useCallback((message: string, type: ToastMessage["type"] = "info") => {
     setToasts(prev => [...prev, makeToast(message, type)]);
@@ -323,6 +331,7 @@ export default function App() {
       </footer>
 
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      {demoMode && <DemoBanner />}
     </div>
   );
 }

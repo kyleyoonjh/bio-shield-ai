@@ -1,0 +1,12 @@
+{
+  "cases": 704753890,
+  "deaths": 7010681,
+  "recovered": 675605810,
+  "active": 22137399,
+  "todayCases": 12453,
+  "todayDeaths": 87,
+  "todayRecovered": 18240,
+  "critical": 28763,
+  "population": 8045311447,
+  "updated": 1718006400000
+}
