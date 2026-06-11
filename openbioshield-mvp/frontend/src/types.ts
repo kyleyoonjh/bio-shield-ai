@@ -132,7 +132,7 @@ export interface BioContextResponse {
     standard: string;
     accession: string;
   };
-  source: "ncbi" | "cache" | "fallback";
+  source: "ncbi" | "cache" | "fallback" | "demo";
 }
 
 // Legacy alias

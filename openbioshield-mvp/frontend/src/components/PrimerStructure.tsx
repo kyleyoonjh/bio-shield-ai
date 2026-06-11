@@ -165,8 +165,8 @@ export default function PrimerStructure({ disease, mutations = [], variantLabel 
         </div>
       )}
 
-      {/* Source notice */}
-      {ctx.source !== "ncbi" && (
+      {/* Source notice — demo mode 는 DemoBanner 가 커버하므로 숨김 */}
+      {ctx.source !== "ncbi" && ctx.source !== "demo" && (
         <div className={`px-4 py-2 rounded-lg text-xs flex items-center gap-2 ${
           ctx.source === "cache"
             ? "bg-blue-50 border border-blue-200 text-blue-800"

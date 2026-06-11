@@ -84,8 +84,8 @@ export default function DnaSequenceView({ disease, mutations, mutationsLoading, 
   return (
     <div className="space-y-5">
 
-      {/* Source badge */}
-      {ctx && ctx.source !== "ncbi" && (
+      {/* Source badge — demo mode 는 DemoBanner 가 커버하므로 숨김 */}
+      {ctx && ctx.source !== "ncbi" && ctx.source !== "demo" && (
         <div className={`px-4 py-2 rounded-lg text-xs flex items-center gap-2 ${
           ctx.source === "cache"
             ? "bg-blue-50 border border-blue-200 text-blue-800"
