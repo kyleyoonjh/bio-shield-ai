@@ -168,7 +168,7 @@ class CandidateAnalysisService:
       - ``calculate_thermo_with_iupac()`` for IUPAC worst-case thermodynamics
     """
 
-    def __init__(self, num_return: int = 15):
+    def __init__(self, num_return: int = 5):
         self.num_return = num_return
         cfg = _load_config()
         self._target_coords: dict[str, dict] = cfg.get("target_coordinates", {})

@@ -14,6 +14,32 @@ MAX_ALLOWED_MISMATCHES = 2  # primers with >2 mismatches against a target are co
 
 
 class CoverageService:
+    def calculate_coverage_batch(
+        self,
+        candidates: list[dict],
+        fasta_path: str,
+        max_mismatches: int = MAX_ALLOWED_MISMATCHES,
+    ) -> list[dict]:
+        """Load FASTA once, then compute coverage for all candidates in-place."""
+        sequences = self._load_fasta(fasta_path)
+        if not sequences:
+            for cand in candidates:
+                cand["coverage_score"] = 0.0
+            return candidates
+        cleaned = [{"id": r["id"], "seq": r["sequence"].replace("-", "")} for r in sequences]
+        total = len(cleaned)
+        for cand in candidates:
+            fwd_upper = cand["forward"].upper()
+            rev_rc    = self._reverse_complement(cand["reverse"].upper())
+            covered   = sum(
+                1 for r in cleaned
+                if self._find_primer(fwd_upper, r["seq"], max_mismatches)
+                and self._find_primer(rev_rc,   r["seq"], max_mismatches)
+            )
+            cand["coverage_score"] = round((covered / total) * 100.0, 2) if total else 0.0
+        logger.debug("[coverage] batch done | candidates=%d sequences=%d", len(candidates), total)
+        return candidates
+
     def calculate_coverage(
         self,
         forward: str,

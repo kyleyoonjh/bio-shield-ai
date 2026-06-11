@@ -101,6 +101,11 @@ class AssayOrchestrator:
                         len(raw_candidates), time.perf_counter() - t)
             if not raw_candidates:
                 raise ValueError("Primer3 produced no candidates — try relaxing parameters")
+            _MAX_CANDIDATES = 25
+            if len(raw_candidates) > _MAX_CANDIDATES:
+                logger.info("[pipeline] capping candidates %d → %d before per-candidate steps",
+                            len(raw_candidates), _MAX_CANDIDATES)
+                raw_candidates = raw_candidates[:_MAX_CANDIDATES]
 
             # Step 4 — Specificity filter
             await _progress(4, f"Off-target specificity filter ({len(raw_candidates)} candidates)")
@@ -125,18 +130,14 @@ class AssayOrchestrator:
             if not validated_spec:
                 raise ValueError("All candidates failed specificity filter")
 
-            # Step 5 — Coverage scoring
+            # Step 5 — Coverage scoring (batch: FASTA loaded once for all candidates)
             await _progress(5, f"Variant coverage ({len(validated_spec)} candidates)")
             t = time.perf_counter()
-
-            def _run_coverage(candidates, fp):
-                for cand in candidates:
-                    cov = self.coverage.calculate_coverage(cand["forward"], cand["reverse"], fp)
-                    cand["coverage_score"] = cov["coverage_score"]
-                return candidates
-
-            validated_spec = await asyncio.to_thread(_run_coverage, validated_spec, fasta_path)
-            logger.info("[pipeline] step=5 DONE | elapsed=%.2fs", time.perf_counter() - t)
+            validated_spec = await asyncio.to_thread(
+                self.coverage.calculate_coverage_batch, validated_spec, fasta_path
+            )
+            logger.info("[pipeline] step=5 DONE | candidates=%d elapsed=%.2fs",
+                        len(validated_spec), time.perf_counter() - t)
 
             # Step 6 — Thermodynamic scoring
             await _progress(6, "Thermodynamic scoring (Tm, GC, dimer, hairpin)")
